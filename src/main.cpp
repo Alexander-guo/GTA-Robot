@@ -11,7 +11,7 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-   static bool flag = true;
+  /* static bool flag = true;
 
   if(flag){
     gripper.gripperClose();
@@ -22,4 +22,9 @@ void loop() {
     flag = true;
     delay(1000);
   }
+   */
+
+  float duty_ratio_ms = gripper.gripperClose();
+  delay(5000);
+  gripper.gripperOpen(duty_ratio_ms);
 }

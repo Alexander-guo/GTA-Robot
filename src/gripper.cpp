@@ -6,11 +6,15 @@
 
 #include "gripper.h"
 
-Gripper::Gripper(){
+const float Gripper::duty_ratio_ms_limit = 1.3;
 
+Gripper::Gripper()
+{
+    pinMode(TOUCH_PIN, INPUT);
 }
 
 Gripper::Gripper(int pin, uint8_t channel, int res_bits){
+    pinMode(TOUCH_PIN, INPUT);
     ledc_pin_servo = pin;
     ledc_channel = channel;
     ledc_res_bits = res_bits;
@@ -29,23 +33,50 @@ void Gripper::ledcAnalogWrite(uint8_t channel, float duty_ratio_ms, float duty_m
     ledcWrite(channel, duty_res);
 }
 
-void Gripper::gripperOpen(){
+void Gripper::gripperOpen(float start_duty_ratio_ms){
     // open the gripper
-    for(float duty_ratio_ms = duty_ratio_ms_limit; duty_ratio_ms >= DUTY_RATIO_MIN - 0.1;)
+    static uint64_t previous_time;
+
+    for(float duty_ratio_ms = start_duty_ratio_ms; duty_ratio_ms >= DUTY_RATIO_MIN - 0.1;)
     {
-        ledcAnalogWrite(ledc_channel, duty_ratio_ms);
-        duty_ratio_ms -= 0.1;
-        delay(100);
+        if(millis() - previous_time >= 100){
+            ledcAnalogWrite(ledc_channel, duty_ratio_ms);
+            duty_ratio_ms -= 0.1;
+            previous_time = millis();
+        }
+        // delay(100);
     }
 }
 
-void Gripper::gripperClose(){
+float Gripper::gripperClose(){
     // close the gripper
-    for(float duty_ratio_ms = DUTY_RATIO_MIN; duty_ratio_ms <= duty_ratio_ms_limit + 0.1;)
+    static uint64_t previous_time;
+    float duty_ratio_ms;
+    for (duty_ratio_ms = DUTY_RATIO_MIN; duty_ratio_ms <= duty_ratio_ms_limit + 0.1;)
     {
-        ledcAnalogWrite(ledc_channel, duty_ratio_ms);
-        duty_ratio_ms += 0.1;
-        delay(100);
+        if (millis() - previous_time >= 100){
+            ledcAnalogWrite(ledc_channel, duty_ratio_ms);
+            duty_ratio_ms += 0.1;
+            previous_time = millis();
+            if (isGripped()){
+                Serial.println("Yes!!!!");
+                break;
+            }
+            else{
+                Serial.println("No!!!!");
+            }
+        }
+    }
+    return duty_ratio_ms;
+    // delay(100);
+}
+
+boolean Gripper::isGripped(){
+    if(touchRead(TOUCH_PIN) <= 5){
+        return true;
+    }
+    else{
+        return false;
     }
 }
 
