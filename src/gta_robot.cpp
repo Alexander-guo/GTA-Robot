@@ -12,6 +12,10 @@ GTARobot::GTARobot()
 
     robotUDPServer.begin(robotUDPPort);
 
+    // pullup two dip switch pin
+    pinMode(DIP_SWITCH_PIN1, INPUT_PULLUP);
+    pinMode(DIP_SWITCH_PIN2, INPUT_PULLUP);
+
     vive1.begin();
     /* comment it out if you only use one vive circuit */
     vive2.begin();
@@ -27,14 +31,7 @@ void GTARobot::processTick()
 }
 
 void GTARobot::setRoboID(){
-    if(ID_12_PIN == HIGH)
-        roboID = 1;
-    else if(ID_12_PIN == LOW)
-        roboID = 2;
-    else if(ID_34_PIN == HIGH)
-        roboID = 3;
-    else if(ID_34_PIN == LOW)
-        roboID = 4;
+    roboID = (digitalRead(DIP_SWITCH_PIN1) << 1) + digitalRead(DIP_SWITCH_PIN2) + 1;
 }
 
 void GTARobot::viveUDPSetup(){
