@@ -26,6 +26,17 @@ void GTARobot::processTick()
 
 }
 
+void GTARobot::setRoboID(){
+    if(ID_12_PIN == HIGH)
+        roboID = 1;
+    else if(ID_12_PIN == LOW)
+        roboID = 2;
+    else if(ID_34_PIN == HIGH)
+        roboID = 3;
+    else if(ID_34_PIN == LOW)
+        roboID = 4;
+}
+
 void GTARobot::viveUDPSetup(){
     Serial.begin(115200);
     Serial.println("Vive trackers started!");
@@ -63,7 +74,10 @@ void GTARobot::posSending(){
     static uint64_t previous_time;
     int x1, y1, x2, y2; // xy position
 
-    if (millis() - previous_time >= 100){
+    setRoboID(); // set robot ID
+
+    if (millis() - previous_time >= 100)
+    {
         if(vive1.status()== VIVE_LOCKEDON){
             Serial.printf("X1 %d, Y1 %d\n", vive1.xCoord(), vive1.yCoord());
             Serial.printf("X2 %d, Y2 %d\n", vive2.xCoord(), vive2.yCoord());
@@ -87,7 +101,7 @@ void GTARobot::posSending(){
 
         // store into a string with format #:####,####, which is robotid, x, y
         //sprintf(s, "%1d:%4d:%4d", 1, x1, y1);
-        sprintf(s, "%1d:%4d,%4d", 1, *avgPos, *(avgPos + 1)); // robot id can be changed
+        sprintf(s, "%1d:%4d,%4d", roboID, *avgPos, *(avgPos + 1)); // robot id can be changed
         fncUdpSend(s, 13);
         Serial.printf("sending data acquired by vive: %s\n", s);
 
@@ -106,9 +120,9 @@ void GTARobot::handleCanMsg(){
 
         canUDPServer.read(packetBuffer, UDP_PACKET_SIZE);
 
+        int canID = atoi((char *)packetBuffer); // 1st indexed char
         int x = atoi((char *) packetBuffer+2); // #:####,#### 2nd indexed char
         int y = atoi((char *) packetBuffer+7); // 7th indexed char
-        int canID = atoi((char *)packetBuffer); // 1st indexed char
 
         //updateCanData(canID, x, y);
         cans[canID - 1].id = canID;
@@ -130,9 +144,9 @@ void GTARobot::handleRoboMsg(){
 
         robotUDPServer.read(packetBuffer, UDP_PACKET_SIZE);
 
+        int robotID = atoi((char *)packetBuffer); // 1st indexed char
         int x = atoi((char *) packetBuffer+2); // #:####,#### 2nd indexed char
         int y = atoi((char *) packetBuffer+7); // 7th indexed char
-        int robotID = atoi((char *)packetBuffer); // 1st indexed char
 
         //updateRoboData(robotID, x, y);
         robots[robotID - 1].id = robotID;

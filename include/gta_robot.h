@@ -11,6 +11,9 @@
 /* comment it out if you only use one vive circuit */
 #define SIGNALPIN2 37
 
+#define ID_12_PIN 13 // dip switch for 1, 2 (ID: 1, 2)
+#define ID_34_PIN 15 // dip switch for 3, 4 (ID: 3, 4)
+
 
 class GTARobot
 {
@@ -34,6 +37,7 @@ public:
     const char* password = "47543454";
 
     char s[13]; // the string to send through UDP
+    int roboID;
 
     typedef struct Robot_data{
         int id;
@@ -63,6 +67,7 @@ public:
 
     void handleCanMsg(); // handle received message from can
     void handleRoboMsg(); // handle received message from robot
+    void setRoboID();
 };
 
 #endif /* GTA_ROBOT */
