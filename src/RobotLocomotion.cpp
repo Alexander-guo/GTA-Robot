@@ -1,12 +1,18 @@
 #include "RobotLocomotion.h"
 
-RobotLocomotion::RobotLocomotion(Motor motor1, Motor motor2){
-    this -> motor1 = motor1;
-    this -> motor2 = motor2;
-    robo_vel vel{MAX_LINEAR_VEL * LIN_VEL_SCALING, 0};
-}
+// RobotLocomotion::RobotLocomotion(Motor motor1, Motor motor2){
+//     this -> motor1 = motor1;
+//     this -> motor2 = motor2;
+//     robo_vel vel{MAX_LINEAR_VEL * LIN_VEL_SCALING, 0};
+// }
+RobotLocomotion::RobotLocomotion()
+    :vel(robo_vel{MAX_LINEAR_VEL * LIN_VEL_SCALING, 0})
+{}
 
-void RobotLocomotion::turnLeft(float anglr_vel_scal = ANGLR_VEL_SCALING){
+RobotLocomotion::~RobotLocomotion()
+{}
+
+void RobotLocomotion::turnLeft(float anglr_vel_scal){
     vel.lin_vel = MAX_LINEAR_VEL * LIN_VEL_SCALING; // set linear velocity back to initial value
     vel.anglr_vel = MAX_ANGULAR_VEL * anglr_vel_scal;
     calculate_wheel_vel();
@@ -14,7 +20,7 @@ void RobotLocomotion::turnLeft(float anglr_vel_scal = ANGLR_VEL_SCALING){
     updatePWM();
 }
 
-void RobotLocomotion::turnRight(float anglr_vel_scal = ANGLR_VEL_SCALING){
+void RobotLocomotion::turnRight(float anglr_vel_scal){
     vel.lin_vel = MAX_LINEAR_VEL * LIN_VEL_SCALING; // set linear velocity back to initial value 
     vel.anglr_vel = -MAX_ANGULAR_VEL * anglr_vel_scal;
     calculate_wheel_vel();
@@ -22,7 +28,7 @@ void RobotLocomotion::turnRight(float anglr_vel_scal = ANGLR_VEL_SCALING){
     updatePWM(); 
 }
 
-void RobotLocomotion::goStraight(float lin_vel_scal = LIN_VEL_SCALING){
+void RobotLocomotion::goStraight(float lin_vel_scal){
     vel.lin_vel = MAX_LINEAR_VEL * lin_vel_scal;
     vel.anglr_vel = 0;
     calculate_wheel_vel();
