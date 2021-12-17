@@ -48,7 +48,6 @@ void handleRoot(){
     htmlServer.sendhtml(body);
 }
 
-
 void handleSwitch(){
     String s = "";
     static int toggle = 0;
@@ -61,34 +60,17 @@ void handleSwitch(){
 }
 
 void handleJoy(){
-    int ang_vel, lin_vel;
-    ang_vel = htmlServer.getVal(); // from -50 to +50
-    lin_vel = htmlServer.getVal();
-
-    // left = x - y;
-    // right = x + y;
-
-    ang_vel = map(ang_vel, -50, 50, -MAX_ANGULAR_VEL, MAX_ANGULAR_VEL);
-    lin_vel = -map(lin_vel, -50, 50, -MAX_LINEAR_VEL, MAX_LINEAR_VEL); // defined positive as turn left
-
-    String s = String(ang_vel) + "rad/s ," + String(lin_vel) + "m/s";
-    htmlServer.sendplain(s);
-    //Serial.printf("received X,Y:=%d,%d\n",x,y);
-
-    savage_friday.rl.calculate_wheel_vel();
-    savage_friday.rl.updateDirection();
-    savage_friday.rl.updatePWM();
+    savage_friday.setState(MANUAL);
 }
 
-// TODO(Guo): consider setting flag here to do the corrsponding funtionality, otherwise may not manuveur continuously
 void handleWallFollowing(){
-    savage_friday.wallFollowing();
+    savage_friday.setState(WALL_FOLLOWING);
 }
 
 void handleBeaconSensing(){
-    savage_friday.beaconSensing();
+    savage_friday.setState(BEACON_SENSING);
 }
 
 void handleMoveToPos(){
-    savage_friday.moveToGivenPos();
+    savage_friday.setState(AUTONOMOUS);
 }

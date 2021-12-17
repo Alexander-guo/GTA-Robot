@@ -28,11 +28,13 @@ void GTARobot::processTick()
     handleCanMsg();
     handleRobotMsg();
 
-    switch (m_robo_state)
+    switch(m_robo_state)
     {
         case MANUAL:
+            moveRobot();
             break;
         case AUTONOMOUS:
+            moveToGivenPos();
             break;
         case WALL_FOLLOWING:
             wallFollowing();
@@ -43,6 +45,27 @@ void GTARobot::processTick()
         default:
             break;
     }
+}
+
+void GTARobot::moveRobot()
+{
+    int ang_vel, lin_vel;
+    ang_vel = htmlServer.getVal(); // from -50 to +50
+    lin_vel = htmlServer.getVal();
+
+    // left = x - y;
+    // right = x + y;
+
+    ang_vel = map(ang_vel, -50, 50, -MAX_ANGULAR_VEL, MAX_ANGULAR_VEL);
+    lin_vel = -map(lin_vel, -50, 50, -MAX_LINEAR_VEL, MAX_LINEAR_VEL); // defined positive as turn left
+
+    String s = String(ang_vel) + "rad/s ," + String(lin_vel) + "m/s";
+    htmlServer.sendplain(s);
+    //Serial.printf("received X,Y:=%d,%d\n",x,y);
+
+    rl.calculate_wheel_vel();
+    rl.updateDirection();
+    rl.updatePWM();
 }
 
 void  GTARobot::wallFollowing(){
@@ -121,13 +144,13 @@ void GTARobot::beaconSensing(){
 
 }
 
-void GTARobot::moveToGivenPos()
-{
-
-}
-
 void GTARobot::setRoboID(){
     roboID = (digitalRead(DIP_SWITCH_PIN1) << 1) + digitalRead(DIP_SWITCH_PIN2) + 1;
+}
+
+void GTARobot::setState(robot_states state)
+{
+    m_robo_state = state;
 }
 
 void GTARobot::viveUDPSetup(){
@@ -249,6 +272,54 @@ void GTARobot::handleRobotMsg(){
         robots[robotID - 1].x = x;   
         robots[robotID - 1].y = y;
 
-        Serial.printf("From robot %d: %d, %d\n\r", robotID, x, y);
+        // Serial.printf("From robot %d: %d, %d\n\r", robotID, x, y);
     }
 }
+
+void GTARobot::moveToGivenPos(){
+    static int canNumToFollow;
+    float slope_mypos_to_can;
+    float slope_two_vive;
+    float slope_multiple;
+
+    int can_x = 0;
+    int can_y = 0;
+
+    // assume the line between the middle point of two vive to the can point is ax + by + c = 0, direction from middle point to can
+    int a;
+    int b;
+    int c;
+    int d;
+
+    int my_x = robots[roboID - 1].x; // our own robot ID, middle point
+    int my_y = robots[roboID - 1].y;
+
+    // determine which can to follow
+    for (canNumToFollow = 0; canNumToFollow <= 7; canNumToFollow ++){
+        if (cans[canNumToFollow].id != 0){
+            can_x = cans[canNumToFollow].x;
+            can_y = cans[canNumToFollow].y;
+            break;
+        }
+    }
+
+    slope_mypos_to_can = (float)((my_y - cans[canNumToFollow].y) / (my_x - cans[canNumToFollow].x));
+    slope_two_vive = (float)(vive1.yCoord() - vive2.yCoord()) / (vive1.xCoord() - vive2.xCoord());
+    slope_multiple = slope_two_vive * slope_mypos_to_can;
+
+    a = can_y - my_y;
+    b = my_x - can_x;
+    c = can_x * my_y - my_x * can_y;
+    d = a * vive1.xCoord() + b * vive1.yCoord() + c;
+
+    // margin remains to tune
+    if (abs(slope_multiple - (-1)) <= 0.05 && d < 0)
+    {
+        rl.goStraight(0.5);
+    }
+    else {
+        rl.turnLeft();
+    }
+}
+
+

@@ -39,6 +39,7 @@ typedef struct Can_data{
     int y;
 } can;
 
+
 class GTARobot
 {
 public:
@@ -51,6 +52,7 @@ public:
     // Motor motor1, motor2; // 2 motor objects
     // Gripper gripper;      // 1 gripper object
     // 1 beacon detector object
+    RobotLocomotion rl = RobotLocomotion();
 
     WiFiUDP robotUDPServer;
     WiFiUDP canUDPServer;
@@ -62,15 +64,14 @@ public:
     const char* ssid = "TP-Link_05AF";
     const char* password = "47543454";
 
+    robot robots[4];
+    can cans[8];
+
     char s[13]; // the string to send through UDP
     int roboID;
 
-    robot* robots; // position data for all robots on the field
-    can* cans; // position data for all cans on the field
-
     robot_states m_robo_state;
     // RobotLocomotion rl = RobotLocomotion(motor1, motor2); // perform basic robot motion
-    RobotLocomotion rl; // perform basic robot motion
 
     GTARobot();
     ~GTARobot();
@@ -85,8 +86,10 @@ public:
     void handleCanMsg(); // handle received message from can
     void handleRobotMsg(); // handle received message from robot
     void setRoboID();
+    void setState(robot_states state);
 
     // funtionalilty
+    void moveRobot();
     void wallFollowing();
     void beaconSensing();
     void moveToGivenPos();
