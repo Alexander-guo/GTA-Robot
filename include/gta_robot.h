@@ -89,6 +89,7 @@ public:
     // funtionalilty
     void wallFollowing();
     void beaconSensing();
+    void moveToGivenPos();
 };
 
 #endif /* GTA_ROBOT */

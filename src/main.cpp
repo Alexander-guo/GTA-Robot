@@ -19,6 +19,7 @@ void setup()
     Serial.begin(115200);
 
     savage_friday.viveUDPSetup();
+    htmlControlInit();
 
     // Setup tick interrupt function
     timer3 = timerBegin(0, 80, true);       // timer runs at 1MHz and counts up
@@ -30,21 +31,9 @@ void setup()
 
 void loop()
 {
-    static long lastWebCheck = millis();
-    uint32_t ms;
-
     if (tick_occurred)
     {
         tick_occurred = false;
         savage_friday.processTick();
-    }
-
-    
-    // html running
-    ms = millis();
-    if (ms-lastWebCheck > 2){ 
-        //htmlServer.serve(server,body);  // WiFiServer object in the brackets
-        htmlServer.serve();
-        lastWebCheck = ms;
     }
 }

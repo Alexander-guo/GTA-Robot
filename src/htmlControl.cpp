@@ -1,6 +1,10 @@
 #include "htmlControl.h"
 #include "html510.h"
 
+extern GTARobot savage_friday;
+const char *body;
+HTML510Server htmlServer(80);
+
 /* HTMLControl::HTMLControl(RobotLocomotion rl){
     this->rl = rl;
     //htmlServer.begin();
@@ -71,20 +75,20 @@ void handleJoy(){
     htmlServer.sendplain(s);
     //Serial.printf("received X,Y:=%d,%d\n",x,y);
 
-    gtaRobo.rl.calculate_wheel_vel();
-    gtaRobo.rl.updateDirection();
-    gtaRobo.rl.updatePWM();
+    savage_friday.rl.calculate_wheel_vel();
+    savage_friday.rl.updateDirection();
+    savage_friday.rl.updatePWM();
 }
 
 // TODO(Guo): consider setting flag here to do the corrsponding funtionality, otherwise may not manuveur continuously
 void handleWallFollowing(){
-    gtaRobo.wallFollowing();
+    savage_friday.wallFollowing();
 }
 
 void handleBeaconSensing(){
-    gtaRobo.beaconSensing();
+    savage_friday.beaconSensing();
 }
 
 void handleMoveToPos(){
-    gtaRobo.movingToPos();
+    savage_friday.moveToGivenPos();
 }

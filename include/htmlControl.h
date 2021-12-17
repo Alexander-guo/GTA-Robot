@@ -1,5 +1,5 @@
-#ifndef HTML_CONTROL 
-#define HTML_CONTROL
+#ifndef HTML_CONTROL_H
+#define HTML_CONTROL_H
 
 #include "gta_robot.h"
 #include "myJoyJS.h"
@@ -23,8 +23,6 @@
 //         void init();
 // };
 
-const char *body;
-HTML510Server htmlServer(80);
 
 void htmlControlInit(); // initialize html control (after wifi setup)
 

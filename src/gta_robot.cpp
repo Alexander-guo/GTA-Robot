@@ -1,5 +1,7 @@
 #include "gta_robot.h"
+#include "htmlControl.h"
 
+extern HTML510Server htmlServer;
 
 GTARobot::GTARobot()
     : m_robo_state(MANUAL)
@@ -11,6 +13,18 @@ GTARobot::~GTARobot()
 // This function will perform all the data processing neccessary for each tick
 void GTARobot::processTick()
 {
+    // html running
+    // static uint32_t lastWebCheck = millis();
+    // uint32_t time_now = millis();
+
+    // if (time_now - lastWebCheck >= 10){ 
+    //     //htmlServer.serve(server,body);  // WiFiServer object in the brackets
+    //     htmlServer.serve();
+    //     lastWebCheck = now;
+    // }
+
+    htmlServer.serve();
+
     handleCanMsg();
     handleRobotMsg();
 
@@ -104,6 +118,11 @@ void  GTARobot::wallFollowing(){
 }
 
 void GTARobot::beaconSensing(){
+
+}
+
+void GTARobot::moveToGivenPos()
+{
 
 }
 
