@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "gta_robot.h"
+#include "htmlControl.h"
 
 #define TICK_PERIOD 10  //[ms]
 hw_timer_t* timer3 = NULL;
@@ -27,9 +28,21 @@ void setup()
 
 void loop()
 {
+    static long lastWebCheck = millis();
+    uint32_t ms;
+
     if (tick_occurred)
     {
         tick_occurred = false;
         robot.processTick();
+    }
+
+    
+    // html running
+    ms = millis();
+    if (ms-lastWebCheck > 2){ 
+        //htmlServer.serve(server,body);  // WiFiServer object in the brackets
+        htmlServer.serve();
+        lastWebCheck = ms;
     }
 }
