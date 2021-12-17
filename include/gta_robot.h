@@ -14,6 +14,8 @@
 #define RIGHT_SENSOR_ECHO_PIN 33
 #define SENSOR_TRIG_PIN 25
 
+enum robot_states {MANUAL, AUTONOMOUS, WALL_FOLLOWING, BEACON_SENSING};
+
 class GTARobot
 {
 public:
@@ -26,6 +28,7 @@ public:
     // Gripper gripper;      // 1 gripper object
     // 1 beacon detector object
 
+    robot_states m_robo_state;
     // RobotLocomotion rl = RobotLocomotion(motor1, motor2); // perform basic robot motion
     RobotLocomotion rl; // perform basic robot motion
 

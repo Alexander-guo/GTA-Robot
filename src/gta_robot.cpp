@@ -2,6 +2,7 @@
 
 
 GTARobot::GTARobot()
+    : m_robo_state(MANUAL)
 {
 }
 
@@ -11,9 +12,21 @@ GTARobot::~GTARobot()
 // This function will perform all the data processing neccessary for each tick
 void GTARobot::processTick()
 {
-
+    switch (m_robo_state)
+    {
+        case MANUAL:
+            break;
+        case AUTONOMOUS:
+            break;
+        case WALL_FOLLOWING:
+            wallFollowing();
+            break;
+        case BEACON_SENSING:
+            beaconSensing();
+            break;
+        default:
+    }
 }
-
 
 void  GTARobot::wallFollowing(){
     static uint64_t previous_time;
@@ -86,7 +99,6 @@ void  GTARobot::wallFollowing(){
         }
     }
 }
-
 
 void GTARobot::beaconSensing(){
 
