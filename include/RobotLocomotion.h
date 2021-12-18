@@ -3,8 +3,8 @@
 
 #include <Arduino.h>
 
-#define LIN_VEL_SCALING 0.5 // linear velocity scaling factor
-#define ANGLR_VEL_SCALING 0.5 // angular velocity scaling factor
+#define LIN_VEL_SCALING 0.2 // linear velocity scaling factor
+#define ANGLR_VEL_SCALING 0.2 // angular velocity scaling factor
 
 #define TRACK 0.20f // distance between wheels [m]
 #define WHEEL_RADIUS 0.035f // radius of the wheel [m]
@@ -15,8 +15,8 @@
 #define MAX_ANGULAR_VEL ((2.0f * WHEEL_RADIUS * MAX_WHEEL_W) / TRACK)  // [rad/s] 
 
 #define MOTOR_L_PWM_PIN 5 // ENA
-#define MOTOR_L_DIR_PIN 18 // IN1
-#define MOTOR_L_NDIR_PIN 23 // IN2
+#define MOTOR_L_DIR_PIN 23 // IN1
+#define MOTOR_L_NDIR_PIN 18 // IN2
 #define MOTOR_R_PWM_PIN 21 // ENB
 #define MOTOR_R_DIR_PIN 19 // IN3
 #define MOTOR_R_NDIR_PIN 22 // IN4
@@ -56,8 +56,8 @@ public:
     RobotLocomotion();
     ~RobotLocomotion();
 
-    void turnLeft(float anglr_vel_scal = ANGLR_VEL_SCALING);
-    void turnRight(float anglr_vel_scal = ANGLR_VEL_SCALING);
+    void turnLeft(float lin_vel_scal = LIN_VEL_SCALING, float anglr_vel_scal = ANGLR_VEL_SCALING);
+    void turnRight(float lin_vel_scal = LIN_VEL_SCALING, float anglr_vel_scal = ANGLR_VEL_SCALING);
     void goStraight(float lin_vel_scal = LIN_VEL_SCALING);
     void calculate_wheel_vel();
     void updateDirection();

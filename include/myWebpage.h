@@ -12,6 +12,8 @@ const char funcbody[] PROGMEM = R"===(
 
 <button typer="button" onclick="moveToPosHit()"> Moving to given Position </button> <br>
 
+<button type="button" onclick="switchmode()"> &nbsp; switch to Manual Mode &nbsp;  </button> <br>
+
 <!-- <input type="range" min="0" max="100" value="50.0" step="1" id="slider2">
 <span id="dc">  </span>  <br>
 -->

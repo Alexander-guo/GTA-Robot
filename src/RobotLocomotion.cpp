@@ -7,21 +7,34 @@
 // }
 RobotLocomotion::RobotLocomotion()
     :vel(robo_vel{MAX_LINEAR_VEL * LIN_VEL_SCALING, 0})
-{}
+{
+    ledcSetup(LEDC_R_CHANNEL, LEDC_FREQ_HZ, LEDC_RESOLUTION_BITS);
+    ledcSetup(LEDC_L_CHANNEL, LEDC_FREQ_HZ, LEDC_RESOLUTION_BITS);
+
+    ledcAttachPin(MOTOR_R_PWM_PIN, LEDC_R_CHANNEL);
+    ledcAttachPin(MOTOR_L_PWM_PIN, LEDC_L_CHANNEL);
+
+    pinMode(MOTOR_L_DIR_PIN, OUTPUT);
+    pinMode(MOTOR_L_NDIR_PIN, OUTPUT);
+    pinMode(MOTOR_R_DIR_PIN, OUTPUT);
+    pinMode(MOTOR_R_NDIR_PIN, OUTPUT);
+}
 
 RobotLocomotion::~RobotLocomotion()
 {}
 
-void RobotLocomotion::turnLeft(float anglr_vel_scal){
-    vel.lin_vel = MAX_LINEAR_VEL * LIN_VEL_SCALING; // set linear velocity back to initial value
+void RobotLocomotion::turnLeft(float lin_vel_scal, float anglr_vel_scal){
+    // vel.lin_vel = MAX_LINEAR_VEL * LIN_VEL_SCALING; // set linear velocity back to initial value
+    vel.lin_vel = MAX_LINEAR_VEL * lin_vel_scal;
     vel.anglr_vel = MAX_ANGULAR_VEL * anglr_vel_scal;
     calculate_wheel_vel();
     updateDirection();
     updatePWM();
 }
 
-void RobotLocomotion::turnRight(float anglr_vel_scal){
-    vel.lin_vel = MAX_LINEAR_VEL * LIN_VEL_SCALING; // set linear velocity back to initial value 
+void RobotLocomotion::turnRight(float lin_vel_scal, float anglr_vel_scal){
+    // vel.lin_vel = MAX_LINEAR_VEL * LIN_VEL_SCALING; // set linear velocity back to initial value
+    vel.lin_vel = MAX_LINEAR_VEL * lin_vel_scal; 
     vel.anglr_vel = -MAX_ANGULAR_VEL * anglr_vel_scal;
     calculate_wheel_vel();
     updateDirection();

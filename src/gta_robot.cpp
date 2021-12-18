@@ -24,7 +24,7 @@ void GTARobot::processTick()
     // }
 
     htmlServer.serve();
-
+    posSending();
     handleCanMsg();
     handleRobotMsg();
 
@@ -49,20 +49,6 @@ void GTARobot::processTick()
 
 void GTARobot::moveRobot()
 {
-    int ang_vel, lin_vel;
-    ang_vel = htmlServer.getVal(); // from -50 to +50
-    lin_vel = htmlServer.getVal();
-
-    // left = x - y;
-    // right = x + y;
-
-    ang_vel = map(ang_vel, -50, 50, -MAX_ANGULAR_VEL, MAX_ANGULAR_VEL);
-    lin_vel = -map(lin_vel, -50, 50, -MAX_LINEAR_VEL, MAX_LINEAR_VEL); // defined positive as turn left
-
-    String s = String(ang_vel) + "rad/s ," + String(lin_vel) + "m/s";
-    htmlServer.sendplain(s);
-    //Serial.printf("received X,Y:=%d,%d\n",x,y);
-
     rl.calculate_wheel_vel();
     rl.updateDirection();
     rl.updatePWM();
@@ -79,6 +65,9 @@ void  GTARobot::wallFollowing(){
         }
         previous_time = millis();
     }
+
+    Serial.printf("left: %d     front: %d   right: %d\n", sensing_dist[0], sensing_dist[1], sensing_dist[2]);
+
     // reasoning behavior
 
     // the robot is far from the wall
@@ -86,12 +75,13 @@ void  GTARobot::wallFollowing(){
 
         if(sensing_dist[1] > FRONT_DIST){
         // front is far from the wall, turn slowly
-        rl.turnRight();
+        rl.vel.lin_vel = MAX_LINEAR_VEL * 0.3;
+        rl.turnRight(0.2, 0.05);
         }
 
         else if(sensing_dist[1] <= FRONT_DIST){
         // front is close the wall, turn quickly
-        rl.turnRight(0.7);
+        rl.turnRight(0.05, 0.3);
         }
     }
 
@@ -100,20 +90,20 @@ void  GTARobot::wallFollowing(){
 
         if(sensing_dist[1] > FRONT_DIST){
         // the robot following a wall, turn slowly
-        if(sensing_dist[2] < LATERAL_DIST - 1.f){
-            rl.turnLeft();
+        if(sensing_dist[2] < LATERAL_DIST - 4.f){
+            rl.turnLeft(0.3, 0.05);
         }
-        else if(abs(LATERAL_DIST - sensing_dist[2]) <= 1.f){
+        else if(abs(LATERAL_DIST - sensing_dist[2]) <= 4.f){
             rl.goStraight(0.7);
         }
-        else if(sensing_dist[2] > LATERAL_DIST + 1.f){
-            rl.turnRight();
+        else if(sensing_dist[2] > LATERAL_DIST + 4.f){
+            rl.turnRight(0.3, 0.05);
         } 
         }
 
         else if(sensing_dist[1] <= FRONT_DIST){
         // the robot in the corner, turn quickly
-            rl.turnLeft(0.7);
+            rl.turnLeft(0.05, 0.3);
         }
     }
     
@@ -122,20 +112,20 @@ void  GTARobot::wallFollowing(){
 
         if(sensing_dist[1] > FRONT_DIST){
         // the robot following a wall, turn slowly
-        if(sensing_dist[0] < LATERAL_DIST - 1.f){
-            rl.turnRight();
+        if(sensing_dist[0] < LATERAL_DIST - 4.f){
+            rl.turnRight(0.3, 0.05);
         }
-        else if(abs(LATERAL_DIST - sensing_dist[0]) <= 1.f){
+        else if(abs(LATERAL_DIST - sensing_dist[0]) <= 4.f){
             rl.goStraight(0.7);
         }
-        else if(sensing_dist[0] > LATERAL_DIST+ 1.f){
-            rl.turnLeft();
+        else if(sensing_dist[0] > LATERAL_DIST+ 4.f){
+            rl.turnLeft(0.3, 0.05);
         } 
         }
 
         else if(sensing_dist[1] <= FRONT_DIST){
         // the robot in the corner, turn quickly
-            rl.turnRight(0.7);
+            rl.turnRight(0.05, 0.3);
         }
     }
 }
@@ -155,21 +145,31 @@ void GTARobot::setState(robot_states state)
 
 void GTARobot::viveUDPSetup(){
     Serial.println("Vive trackers started!");
+    Serial.print("Connecting to ");
+    Serial.print(ssid);
 
-    Serial.print("Connecting to "); Serial.print(ssid);
+    WiFi.mode(WIFI_MODE_STA);
     WiFi.config(ipLocal1, IPAddress(192, 168, 1, 1), IPAddress(255, 255, 255, 0));
-        
     WiFi.begin(ssid, password);
 
+    while(WiFi.status() != WL_CONNECTED)
+    {
+        delay(500); Serial.print(".");
+    }
+
+    Serial.println("WIFI Connected");
+    Serial.printf("Use this URL: http://%s/\n", WiFi.localIP().toString().c_str());
+
     robotUDPServer.begin(robotUDPPort); // robot UDP port 2510
-    canUDPServer.begin(canUDPPort); // can UDP port 1510
+    canUDPServer.begin(canUDPPort);     // can UDP port 1510
 
     // pullup two dip switch pin
+    pinMode(SIGNALPIN1, INPUT);
+    pinMode(SIGNALPIN2, INPUT);
     pinMode(DIP_SWITCH_PIN1, INPUT_PULLUP);
     pinMode(DIP_SWITCH_PIN2, INPUT_PULLUP);
 
     vive1.begin();
-    /* comment it out if you only use one vive circuit */
     vive2.begin();
 }
 
@@ -198,8 +198,8 @@ void GTARobot::posSending(){
     if (millis() - previous_time >= 100)
     {
         if(vive1.status()== VIVE_LOCKEDON){
-            Serial.printf("X1 %d, Y1 %d\n", vive1.xCoord(), vive1.yCoord());
-            Serial.printf("X2 %d, Y2 %d\n", vive2.xCoord(), vive2.yCoord());
+            // Serial.printf("X1 %d, Y1 %d\n", vive1.xCoord(), vive1.yCoord());
+            // Serial.printf("X2 %d, Y2 %d\n", vive2.xCoord(), vive2.yCoord());
         }
         else{
                 vive1.sync(15); // try to resync 15 times (nonblocking)

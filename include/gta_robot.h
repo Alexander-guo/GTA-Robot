@@ -16,8 +16,8 @@
 
 
 #define ULTRASOIC_SENSOR_NUM 3
-#define LATERAL_DIST 10.f // lateral distance should be kept [cm] 
-#define FRONT_DIST 18.f // front distance should be kept [cm]
+#define LATERAL_DIST 15.f // lateral distance should be kept [cm] 
+#define FRONT_DIST 24.f // front distance should be kept [cm]
 
 
 #define LEFT_SENSOR_ECHO_PIN 27
