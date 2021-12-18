@@ -2,7 +2,7 @@
 #define GTA_ROBOT_H
 
 #include <Arduino.h>
-#include "HCSR04.h"
+#include <HCSR04.h>
 #include "RobotLocomotion.h"
 #include "vive510.h"
 #include <WiFi.h>
@@ -23,7 +23,10 @@
 #define LEFT_SENSOR_ECHO_PIN 27
 #define FRONT_SENSOR_ECHO_PIN 14
 #define RIGHT_SENSOR_ECHO_PIN 33
-#define SENSOR_TRIG_PIN 25
+#define LEFT_SENSOR_TRIG_PIN 25
+#define FRONT_SENSOR_TRIG_PIN 26
+#define RIGHT_SENSOR_TRIG_PIN 32
+// #define SENSOR_TRIG_PIN 25
 
 enum robot_states {MANUAL, AUTONOMOUS, WALL_FOLLOWING, BEACON_SENSING};
 
@@ -47,7 +50,10 @@ public:
     Vive510 vive1 = Vive510(SIGNALPIN1);
     Vive510 vive2 = Vive510(SIGNALPIN2);
     // 3 ultrasonic sensor objects
-    HCSR04 hcsr04 = HCSR04(SENSOR_TRIG_PIN, new int[ULTRASOIC_SENSOR_NUM]{LEFT_SENSOR_ECHO_PIN, FRONT_SENSOR_ECHO_PIN, RIGHT_SENSOR_ECHO_PIN}, ULTRASOIC_SENSOR_NUM); // represent left, front and right in order
+    // HCSR04 hcsr04 = HCSR04(SENSOR_TRIG_PIN, new int[ULTRASOIC_SENSOR_NUM]{LEFT_SENSOR_ECHO_PIN, FRONT_SENSOR_ECHO_PIN, RIGHT_SENSOR_ECHO_PIN}, ULTRASOIC_SENSOR_NUM); // represent left, front and right in order
+    HCSR04 left_ultrasonic = HCSR04(LEFT_SENSOR_TRIG_PIN, LEFT_SENSOR_ECHO_PIN, 20, 600);
+    HCSR04 front_ultrasonic = HCSR04(FRONT_SENSOR_TRIG_PIN, FRONT_SENSOR_ECHO_PIN, 20, 600);
+    HCSR04 right_ultrasonic = HCSR04(RIGHT_SENSOR_TRIG_PIN, RIGHT_SENSOR_ECHO_PIN, 20, 600);
 
     // Motor motor1, motor2; // 2 motor objects
     // Gripper gripper;      // 1 gripper object

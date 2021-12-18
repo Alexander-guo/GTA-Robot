@@ -1,11 +1,19 @@
 #include "gta_robot.h"
 #include "htmlControl.h"
 
+#define PREV_CODE false
+
 extern HTML510Server htmlServer;
+
+enum robot_movement_states {STOPPED, ADVANCING, TURNING};
 
 GTARobot::GTARobot()
     : m_robo_state(MANUAL)
-{}
+{
+    left_ultrasonic.begin();
+    front_ultrasonic.begin();
+    right_ultrasonic.begin();
+}
 
 GTARobot::~GTARobot()
 {}
@@ -55,78 +63,78 @@ void GTARobot::moveRobot()
 }
 
 void  GTARobot::wallFollowing(){
-    static uint64_t previous_time;
+    // float left_dist = left_ultrasonic.getMedianFilterDistance();    
+    float right_dist = right_ultrasonic.getDistance();    
+    float front_dist = front_ultrasonic.getDistance();    
 
-    // readings from three ulreasonic sensors in [cm]
-    int sensing_dist[ULTRASOIC_SENSOR_NUM];
-    if (millis() - previous_time >= 60){
-        for(int i = 0; i < ULTRASOIC_SENSOR_NUM; i++){
-        sensing_dist[i] = hcsr04.dist(i);
-        }
-        previous_time = millis();
-    }
+    // if (left_dist != HCSR04_OUT_OF_RANGE)
+    // {
+    //     Serial.printf("Left: %f\n", left_dist);
+    // }
+    // else
+    // {
+    //     Serial.println("Left: Out of Range");
+    // }
 
-    Serial.printf("left: %d     front: %d   right: %d\n", sensing_dist[0], sensing_dist[1], sensing_dist[2]);
+    // if (right_dist != HCSR04_OUT_OF_RANGE)
+    // {
+    //     Serial.printf("Right: %f\n", right_dist);
+    // }
+    // else
+    // {
+    //     Serial.println("Right: Out of Range");
+    // }
+    // if (front_dist != HCSR04_OUT_OF_RANGE)
+    // {
+    //     Serial.printf("Front: %f\n", front_dist);
+    // }
+    // else
+    // {
+    //     Serial.println("Front: Out of Range");
+    // }
+    // Serial.printf("left: %d \tfront: %d \tright: %d\n", left_dist, right_dist, front_dist);
 
-    // reasoning behavior
+    static robot_movement_states robo_movement = STOPPED;
+    static uint32_t time_started_turning;
 
-    // the robot is far from the wall
-    if(sensing_dist[0] >= 50 && sensing_dist[2] >= 50){
-
-        if(sensing_dist[1] > FRONT_DIST){
-        // front is far from the wall, turn slowly
-        rl.vel.lin_vel = MAX_LINEAR_VEL * 0.3;
-        rl.turnRight(0.2, 0.05);
+    switch (robo_movement)
+    {
+    case STOPPED:
+        robo_movement = ADVANCING;
+        break;
+    case ADVANCING:
+        if( !(front_dist <= 20 || front_dist == HCSR04_OUT_OF_RANGE))
+        {
+            if (right_dist < 15 || right_dist == HCSR04_OUT_OF_RANGE)
+            {
+                rl.turnLeft(0.2, 0.05);   
+            }
+            else if ( right_dist > 20)
+            {
+                rl.turnRight(0.2, 0.05);
+            }
+            else
+            {
+                rl.goStraight(0.2);
+            }
         }
-
-        else if(sensing_dist[1] <= FRONT_DIST){
-        // front is close the wall, turn quickly
-        rl.turnRight(0.05, 0.3);
+        else
+        {
+            // Robot has encountered a wall in the front so it stops and turns
+            robo_movement = TURNING;
+            time_started_turning = millis();
         }
-    }
-
-    // counter-clockwise
-    else if(sensing_dist[0] >= 50 && sensing_dist[2] <= 50){
-
-        if(sensing_dist[1] > FRONT_DIST){
-        // the robot following a wall, turn slowly
-        if(sensing_dist[2] < LATERAL_DIST - 4.f){
-            rl.turnLeft(0.3, 0.05);
+        break;
+    case TURNING:
+        if ( millis() - time_started_turning <= 350)
+        {
+            rl.turnLeft(0.0, 0.2);
         }
-        else if(abs(LATERAL_DIST - sensing_dist[2]) <= 4.f){
-            rl.goStraight(0.7);
+        else
+        {
+            robo_movement = ADVANCING;
         }
-        else if(sensing_dist[2] > LATERAL_DIST + 4.f){
-            rl.turnRight(0.3, 0.05);
-        } 
-        }
-
-        else if(sensing_dist[1] <= FRONT_DIST){
-        // the robot in the corner, turn quickly
-            rl.turnLeft(0.05, 0.3);
-        }
-    }
-    
-    // clockwise
-    else if(sensing_dist[0] <= 50 && sensing_dist[2] >= 50){
-
-        if(sensing_dist[1] > FRONT_DIST){
-        // the robot following a wall, turn slowly
-        if(sensing_dist[0] < LATERAL_DIST - 4.f){
-            rl.turnRight(0.3, 0.05);
-        }
-        else if(abs(LATERAL_DIST - sensing_dist[0]) <= 4.f){
-            rl.goStraight(0.7);
-        }
-        else if(sensing_dist[0] > LATERAL_DIST+ 4.f){
-            rl.turnLeft(0.3, 0.05);
-        } 
-        }
-
-        else if(sensing_dist[1] <= FRONT_DIST){
-        // the robot in the corner, turn quickly
-            rl.turnRight(0.05, 0.3);
-        }
+        break;   
     }
 }
 
