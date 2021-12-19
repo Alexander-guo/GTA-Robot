@@ -1,7 +1,10 @@
 #include "gta_robot.h"
 #include "htmlControl.h"
+#include <math.h>
 
-#define PREV_CODE false
+#define SERIAL_PLOTTING false
+#define SERIAL_LOGGING false
+#define USE_MOVING_AVG true
 
 extern HTML510Server htmlServer;
 
@@ -21,18 +24,8 @@ GTARobot::~GTARobot()
 // This function will perform all the data processing neccessary for each tick
 void GTARobot::processTick()
 {
-    // html running
-    // static uint32_t lastWebCheck = millis();
-    // uint32_t time_now = millis();
-
-    // if (time_now - lastWebCheck >= 10){ 
-    //     //htmlServer.serve(server,body);  // WiFiServer object in the brackets
-    //     htmlServer.serve();
-    //     lastWebCheck = now;
-    // }
-
-    htmlServer.serve();
     posSending();
+    htmlServer.serve();
     handleCanMsg();
     handleRobotMsg();
 
@@ -191,58 +184,89 @@ void GTARobot::fncUdpSend(char* datastr, int len){
 Calculate the average positon from the two data points
 */
 void GTARobot::calculateAvgPos(int *arr, int x1, int y1, int x2, int y2){
-  int avg_x = (x1 + x2)/2;
-  int avg_y = (y1 + y2)/2;
-  *arr = avg_x;
-  *(arr + 1) = avg_y;
+  arr[0] = (x1 + x2)/2;
+  arr[1] = (y1 + y2)/2;
+}
+
+int GTARobot::calculateMovingAverage(int &last_value, int new_value, int weight)
+{
+    int update;
+    update = (weight * last_value + new_value)/( weight + 1);
+    last_value = update;
+    return update;
 }
 
 void GTARobot::posSending(){
     static uint64_t previous_time;
-    int x1, y1, x2, y2; // xy position
 
     setRoboID(); // set robot ID
 
     if (millis() - previous_time >= 100)
     {
-        if(vive1.status()== VIVE_LOCKEDON){
+        if(vive1.status() == VIVE_LOCKEDON && vive2.status() == VIVE_LOCKEDON){
             // Serial.printf("X1 %d, Y1 %d\n", vive1.xCoord(), vive1.yCoord());
             // Serial.printf("X2 %d, Y2 %d\n", vive2.xCoord(), vive2.yCoord());
+
+            int x1, y1, x2, y2; // xy position
+            x1 = vive1.xCoord();
+            y1 = vive1.yCoord(); 
+            x2 = vive2.xCoord();
+            y2 = vive2.yCoord();
+
+            // calculate average position of the 2 data points
+            int avgPos[2];
+            calculateAvgPos(avgPos, x1, y1, x2, y2);
+
+            #if USE_MOVING_AVG
+            calculateMovingAverage(m_x, avgPos[0], 3);
+            calculateMovingAverage(m_y, avgPos[1], 3);
+            #else
+            m_x = avgPos[0];
+            m_y = avgPos[1];
+            #endif
+            pos_valid = true;
         }
         else{
-                vive1.sync(15); // try to resync 15 times (nonblocking)
-                vive2.sync(15); // try to resync 15 times (nonblocking)
+            m_x = 0;
+            m_y = 0;
+            pos_valid = false;
         }
-        previous_time = millis();
-    }
-
-    if (millis() - previous_time >= 100){
-        x1 = vive1.xCoord();
-        y1 = vive1.yCoord(); 
-        x2 = vive2.xCoord();
-        y2 = vive2.yCoord();
-
-        // calculate average position of the 2 data points
-        int avgPos[2];
-        calculateAvgPos(avgPos, x1, y1, x2, y2);
 
         // store into a string with format #:####,####, which is robotid, x, y
-        //sprintf(s, "%1d:%4d:%4d", 1, x1, y1);
-        sprintf(s, "%1d:%4d,%4d", roboID, *avgPos, *(avgPos + 1)); // robot id can be changed
+        sprintf(s, "%1d:%4d,%4d", roboID, m_x, m_y); // robot id can be changed
+        s[11] = 0;  // Null terminate sprintf
         fncUdpSend(s, 13);
-        Serial.printf("sending data acquired by vive: %s\n", s);
 
+        #if SERIAL_PLOTTING
+        Serial.print("X:");
+        Serial.print(m_x);
+        Serial.print("\t");
+        Serial.print("Y:");
+        Serial.println(m_y);
+        #elif SERIAL_LOGGING
+        // Serial.printf("sending data acquired by vive: %s\n", s);
+        #endif
+
+        if (vive1.status() != VIVE_LOCKEDON)
+        {
+            vive1.sync(15); // try to resync 15 times (nonblocking)
+        }
+        if (vive2.status() != VIVE_LOCKEDON)
+        {
+            vive2.sync(15); // try to resync 15 times (nonblocking)
+        }
         previous_time = millis();
     }
 }
 
-
 void GTARobot::handleCanMsg(){
+
     const int UDP_PACKET_SIZE = 14;
     uint8_t packetBuffer[UDP_PACKET_SIZE];
 
     int cb = canUDPServer.parsePacket(); // length of the packet
     if(cb){
+
         packetBuffer[cb] = 0; // null terminate string
 
         canUDPServer.read(packetBuffer, UDP_PACKET_SIZE);
@@ -259,7 +283,6 @@ void GTARobot::handleCanMsg(){
         Serial.printf("From can %d: %d, %d\n\r", canID, x, y);
     }
 }
-
 
 void GTARobot::handleRobotMsg(){
     const int UDP_PACKET_SIZE = 14;
@@ -320,13 +343,37 @@ void GTARobot::moveToGivenPos(){
     c = can_x * my_y - my_x * can_y;
     d = a * vive1.xCoord() + b * vive1.yCoord() + c;
 
+#if 0
     // margin remains to tune
-    if (abs(slope_multiple - (-1)) <= 0.05 && d < 0)
+    if (abs(slope_multiple - (-1)) <= 0.2 && d < 0)
     {
         rl.goStraight(0.5);
     }
     else {
-        rl.turnLeft();
+        rl.turnLeft(0, 0.2);
+    }
+#endif
+
+    float angle1 = atan(slope_mypos_to_can);
+    float angle2 = atan(slope_two_vive); 
+    // margin remains to tune
+    if (angle1 >= 0)
+    {   
+        if (abs((angle1 - PI / 2) - angle2) <= 0.087 && d < 0)
+        {
+            rl.goStraight(0.5);
+        }
+        else{
+            rl.turnLeft(0, 0.2);
+        }
+    }
+    else if (angle1 < 0){
+        if (abs((angle1 + PI / 2) - angle2) <= 0.087 && d < 0){
+            rl.goStraight(0.5);
+        }
+        else{
+            rl.turnLeft(0, 0.2);
+        }
     }
 }
 
