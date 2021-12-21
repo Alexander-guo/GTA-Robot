@@ -37,7 +37,7 @@ void htmlControlInit(){
     // writing wrapper func in main.cpp
     htmlServer.attachHandler("/joy?val=",handleJoy);
     htmlServer.attachHandler("/wallFollowingHit",handleWallFollowing);
-    htmlServer.attachHandler("/beaconSensing",handleBeaconSensing);
+    htmlServer.attachHandler("/beaconSensingHit",handleBeaconSensing);
     htmlServer.attachHandler("/moveToPosHit", handleMoveToPos);
     htmlServer.attachHandler("/switchmode", handleSwitch);
     //htmlServer.attachHandler("/lever?val=",handleLever);
@@ -63,7 +63,7 @@ void handleSwitch(){
         body = funcbody;
     if (body == joybody)
     {
-        savage_friday.setState(MANUAL);
+        savage_friday.setState(MANUAL, STOPPED);
     }
 
     savage_friday.rl.vel.lin_vel = 0;
@@ -91,14 +91,14 @@ void handleJoy(){
 }
 
 void handleWallFollowing(){
-    savage_friday.setState(WALL_FOLLOWING);
+    savage_friday.setState(WALL_FOLLOWING, STOPPED);
 }
 
 void handleBeaconSensing(){
-    savage_friday.setState(BEACON_SENSING);
+    savage_friday.setState(BEACON_SENSING, STOPPED);
 }
 
 void handleMoveToPos(){
     Serial.printf("move to xy!");
-    savage_friday.setState(AUTONOMOUS);
+    savage_friday.setState(AUTONOMOUS, STOPPED);
 }

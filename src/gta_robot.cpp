@@ -1,6 +1,7 @@
 #include "gta_robot.h"
 #include "htmlControl.h"
 #include <math.h>
+#include <Arduino.h>
 
 #define SERIAL_PLOTTING false
 #define SERIAL_LOGGING false
@@ -8,10 +9,9 @@
 
 extern HTML510Server htmlServer;
 
-enum robot_movement_states {STOPPED, ADVANCING, TURNING};
 
 GTARobot::GTARobot()
-    : m_robo_state(MANUAL)
+    : m_system_state(MANUAL), m_action_state(STOPPED)
 {
     left_ultrasonic.begin();
     front_ultrasonic.begin();
@@ -29,7 +29,7 @@ void GTARobot::processTick()
     handleCanMsg();
     handleRobotMsg();
 
-    switch(m_robo_state)
+    switch(m_system_state)
     {
         case MANUAL:
             moveRobot();
@@ -56,44 +56,21 @@ void GTARobot::moveRobot()
 }
 
 void  GTARobot::wallFollowing(){
-    // float left_dist = left_ultrasonic.getMedianFilterDistance();    
     float right_dist = right_ultrasonic.getDistance();    
     float front_dist = front_ultrasonic.getDistance();    
 
-    // if (left_dist != HCSR04_OUT_OF_RANGE)
-    // {
-    //     Serial.printf("Left: %f\n", left_dist);
-    // }
-    // else
-    // {
-    //     Serial.println("Left: Out of Range");
-    // }
+    #if SERIAL_LOGGING
+    left_dist != HCSR04_OUT_OF_RANGE ? Serial.printf("Left: %f\n", left_dist) : Serial.println("Left: Out of Range");
+    front_dist != HCSR04_OUT_OF_RANGE ? Serial.printf("Front: %f\n", front_dist) : Serial.println("Front: Out of Range");
+    right_dist != HCSR04_OUT_OF_RANGE ? Serial.printf("Right: %f\n", right_dist) : Serial.println("Right: Out of Range");
+    #endif
 
-    // if (right_dist != HCSR04_OUT_OF_RANGE)
-    // {
-    //     Serial.printf("Right: %f\n", right_dist);
-    // }
-    // else
-    // {
-    //     Serial.println("Right: Out of Range");
-    // }
-    // if (front_dist != HCSR04_OUT_OF_RANGE)
-    // {
-    //     Serial.printf("Front: %f\n", front_dist);
-    // }
-    // else
-    // {
-    //     Serial.println("Front: Out of Range");
-    // }
-    // Serial.printf("left: %d \tfront: %d \tright: %d\n", left_dist, right_dist, front_dist);
-
-    static robot_movement_states robo_movement = STOPPED;
     static uint32_t time_started_turning;
 
-    switch (robo_movement)
+    switch (m_action_state)
     {
     case STOPPED:
-        robo_movement = ADVANCING;
+        m_action_state = ADVANCING;
         break;
     case ADVANCING:
         if( !(front_dist <= 20 || front_dist == HCSR04_OUT_OF_RANGE))
@@ -114,7 +91,7 @@ void  GTARobot::wallFollowing(){
         else
         {
             // Robot has encountered a wall in the front so it stops and turns
-            robo_movement = TURNING;
+            m_action_state = TURNING;
             time_started_turning = millis();
         }
         break;
@@ -125,23 +102,130 @@ void  GTARobot::wallFollowing(){
         }
         else
         {
-            robo_movement = ADVANCING;
+            m_action_state = ADVANCING;
         }
         break;   
     }
 }
 
-void GTARobot::beaconSensing(){
+void GTARobot::beaconSensing()
+{
+    #if 0
+    // m_l_beacon.processRisingEdge_ISR();
+    // m_r_beacon.processRisingEdge_ISR();
 
+    // portENTER_CRITICAL(&m_l_beacon.m_mux);
+    // float new_value_l = m_l_beacon.m_t_now - m_l_beacon.m_t_prev;
+    // portEXIT_CRITICAL(&m_l_beacon.m_mux);
+
+    // portENTER_CRITICAL_ISR(&m_r_beacon.m_mux);
+    // float new_value_r = m_r_beacon.m_t_now - m_r_beacon.m_t_prev;
+    // portEXIT_CRITICAL(&m_r_beacon.m_mux);
+    // if (new_value_l != 0)
+    // {
+    //     new_value_l = 1000000.0f / new_value_l;
+    // }
+    // if (new_value_r != 0)
+    // {
+    //     new_value_r = 1000000.0f / new_value_r;
+    // }
+    // // m_l_beacon.m_counts = 0;
+    // // m_r_beacon.m_counts = 0;
+
+    // if (new_value_l > MAX_FREQ - 10 && new_value_l < MAX_FREQ + 10)
+    // {
+    //     m_l_beacon.m_frequency = 700;
+    // }
+    // else if (new_value_l > MIN_FREQ - 3 && new_value_l < MIN_FREQ + 3)
+    // {
+    //     m_l_beacon.m_frequency = 23;
+    // }
+    // else
+    // {
+    //     m_l_beacon.m_frequency = 0;
+    // }
+
+    // // R diode
+    // if (new_value_r > MAX_FREQ - 10 && new_value_r < MAX_FREQ + 10)
+    // {
+    //     m_r_beacon.m_frequency = 700;
+    // }
+    // else if (new_value_r > MIN_FREQ - 3 && new_value_r < MIN_FREQ + 3)
+    // {
+    //     m_r_beacon.m_frequency = 23;
+    // }
+    // else
+    // {
+    //     m_r_beacon.m_frequency = 0;
+    // }
+    // // t_prev = t_now;
+
+    // Serial.printf("Left: %f\tRight: %f\n", m_l_beacon.getFrequency(), m_r_beacon.getFrequency());
+    #endif
+
+    #if BEACON_USING_INTERRUPT
+    m_l_beacon.computeFrequency();
+    m_r_beacon.computeFrequency();
+    #endif
+
+    int l_freq = m_l_beacon.getFrequency();
+    int r_freq = m_r_beacon.getFrequency();
+    Serial.printf("Left: %df\tRight: %d\n", l_freq, r_freq);
+
+    static int l_times_seen = 0;
+    static int r_times_seen = 0;
+
+    // Update assurance of seeing the beacon
+    l_freq == 700 ? l_times_seen++ : l_times_seen--;
+    r_freq == 700 ? r_times_seen++ : r_times_seen--;
+
+    // Clamp limits
+    l_times_seen = min(2, max(0, l_times_seen));
+    r_times_seen = min(2, max(0, r_times_seen));
+
+    switch (m_action_state)
+    {
+        case STOPPED:
+            rl.goStraight(0);   // Stop the robot
+            m_action_state = TURNING;
+        break;
+    case TURNING:
+        if (l_times_seen <= BEACON_TOP_THRESHOLD && r_times_seen <= BEACON_TOP_THRESHOLD)
+        {
+            rl.turnLeft(0, 0.15);
+        }
+        else if (l_times_seen > BEACON_TOP_THRESHOLD && r_times_seen <= BEACON_TOP_THRESHOLD)
+        {
+            rl.turnLeft(0, 0.15);
+        }
+        else if (l_times_seen <= BEACON_TOP_THRESHOLD && r_times_seen > BEACON_TOP_THRESHOLD)
+        {
+            rl.turnRight(0, 0.15);
+        }
+        else if ( l_times_seen > BEACON_TOP_THRESHOLD && r_times_seen > BEACON_TOP_THRESHOLD)
+        {
+            m_action_state = ADVANCING;
+        }
+        break;
+    case ADVANCING:
+        rl.goStraight(0.2);
+        // Go straight until you're not sure that you see the beacon ahead anymore
+        if ( l_times_seen < BEACON_BOTTOM_TRESHOLD && r_times_seen < BEACON_BOTTOM_TRESHOLD)
+        {
+            m_action_state = STOPPED;
+        }
+        break;
+    }
 }
 
 void GTARobot::setRoboID(){
     roboID = (digitalRead(DIP_SWITCH_PIN1) << 1) + digitalRead(DIP_SWITCH_PIN2) + 1;
 }
 
-void GTARobot::setState(robot_states state)
+void GTARobot::setState(robot_system_states system, robot_action_states action)
 {
-    m_robo_state = state;
+    m_system_state = system;
+    m_action_state = action;
 }
 
 void GTARobot::viveUDPSetup(){
