@@ -119,7 +119,7 @@ void  GTARobot::wallFollowing(){
         }
         break;
     case TURNING:
-        if ( millis() - time_started_turning <= 350)
+        if ( millis() - time_started_turning <= 300)
         {
             rl.turnLeft(0.0, 0.2);
         }
@@ -150,7 +150,7 @@ void GTARobot::viveUDPSetup(){
     Serial.print(ssid);
 
     WiFi.mode(WIFI_MODE_STA);
-    WiFi.config(ipLocal1, IPAddress(192, 168, 1, 1), IPAddress(255, 255, 255, 0));
+    WiFi.config(ipLocal1, IPAddress(192, 168, 1, 1), IPAddress(255, 255, 254, 0));
     WiFi.begin(ssid, password);
 
     while(WiFi.status() != WL_CONNECTED)
@@ -218,11 +218,13 @@ void GTARobot::posSending(){
             calculateAvgPos(avgPos, x1, y1, x2, y2);
 
             #if USE_MOVING_AVG
-            calculateMovingAverage(m_x, avgPos[0], 3);
-            calculateMovingAverage(m_y, avgPos[1], 3);
+            // calculateMovingAverage(m_x, avgPos[0], 3);
+            // calculateMovingAverage(m_y, avgPos[1], 3);
+            calculateMovingAverage(m_x, avgPos[1], 3);
+            calculateMovingAverage(m_y, avgPos[0], 3);
             #else
-            m_x = avgPos[0];
-            m_y = avgPos[1];
+            m_x = avgPos[1];
+            m_y = avgPos[0];
             #endif
             pos_valid = true;
         }
@@ -271,16 +273,20 @@ void GTARobot::handleCanMsg(){
 
         canUDPServer.read(packetBuffer, UDP_PACKET_SIZE);
 
+        // Serial.printf("packet buffer: %s\n", packetBuffer);
+
         int canID = atoi((char *)packetBuffer); // 1st indexed char
         int x = atoi((char *) packetBuffer+2); // #:####,#### 2nd indexed char
         int y = atoi((char *) packetBuffer+7); // 7th indexed char
 
         //updateCanData(canID, x, y);
         cans[canID - 1].id = canID;
-        cans[canID - 1].x = x;
-        cans[canID - 1].y = y;
+        // cans[canID - 1].x = x;
+        // cans[canID - 1].y = y;
+        cans[canID - 1].x = y;
+        cans[canID - 1].y = x; 
 
-        Serial.printf("From can %d: %d, %d\n\r", canID, x, y);
+        //Serial.printf("From can %d: %d, %d\n\r", canID, x, y);
     }
 }
 
@@ -309,72 +315,43 @@ void GTARobot::handleRobotMsg(){
 
 void GTARobot::moveToGivenPos(){
     static int canNumToFollow;
-    float slope_mypos_to_can;
-    float slope_two_vive;
-    float slope_multiple;
-
-    int can_x = 0;
-    int can_y = 0;
-
-    // assume the line between the middle point of two vive to the can point is ax + by + c = 0, direction from middle point to can
-    int a;
-    int b;
-    int c;
-    int d;
-
-    int my_x = robots[roboID - 1].x; // our own robot ID, middle point
-    int my_y = robots[roboID - 1].y;
 
     // determine which can to follow
     for (canNumToFollow = 0; canNumToFollow <= 7; canNumToFollow ++){
         if (cans[canNumToFollow].id != 0){
-            can_x = cans[canNumToFollow].x;
-            can_y = cans[canNumToFollow].y;
             break;
         }
     }
 
-    slope_mypos_to_can = (float)((my_y - cans[canNumToFollow].y) / (my_x - cans[canNumToFollow].x));
-    slope_two_vive = (float)(vive1.yCoord() - vive2.yCoord()) / (vive1.xCoord() - vive2.xCoord());
-    slope_multiple = slope_two_vive * slope_mypos_to_can;
+    float angle_1, angle_2, diff_angle;
+    float dist = sqrt(pow(cans[canNumToFollow].y - m_y, 2) + pow(cans[canNumToFollow].x - m_x, 2));
 
-    a = can_y - my_y;
-    b = my_x - can_x;
-    c = can_x * my_y - my_x * can_y;
-    d = a * vive1.xCoord() + b * vive1.yCoord() + c;
+    angle_1 = atan2(cans[canNumToFollow].y - m_y, cans[canNumToFollow].x - m_x); // angle from car to can
+    angle_2 = atan2(vive2.xCoord() - vive1.xCoord(), vive2.yCoord() - vive1.yCoord()); 
 
-#if 0
-    // margin remains to tune
-    if (abs(slope_multiple - (-1)) <= 0.2 && d < 0)
-    {
-        rl.goStraight(0.5);
-    }
-    else {
-        rl.turnLeft(0, 0.2);
-    }
-#endif
+    // target angle - current angle
+    diff_angle = (angle_2 > PI / 2 && angle_2 <= PI) ?  angle_1 - (angle_2 - 3 * PI / 2) : angle_1 - (angle_2 + PI / 2);
 
-    float angle1 = atan(slope_mypos_to_can);
-    float angle2 = atan(slope_two_vive); 
-    // margin remains to tune
-    if (angle1 >= 0)
-    {   
-        if (abs((angle1 - PI / 2) - angle2) <= 0.087 && d < 0)
-        {
-            rl.goStraight(0.5);
+    if (dist > 700){
+        if (fabs(diff_angle) > 10 * PI / 180){
+            if (diff_angle < 0){
+                    rl.turnRight(0, 0.15);
+            }
+            else if (diff_angle > 0){
+                rl.turnLeft(0, 0.15);
+            }
+            angle_1 = atan2(cans[canNumToFollow].y - m_y, cans[canNumToFollow].x - m_x);       // angle from car to can
+            angle_2 = atan2(vive2.xCoord() - vive1.xCoord(), vive2.yCoord() - vive1.yCoord()); 
+            diff_angle = (angle_2 >  PI / 2 && angle_2 <=  PI) ?  angle_1 - (angle_2 - 3 * PI / 2) : angle_1 - (angle_2 + PI / 2);
+            Serial.printf("Robo x: %d, y: %d\t", m_x, m_y);
+            Serial.printf("Can x: %d, y: %d \t", cans[canNumToFollow].x, cans[canNumToFollow].y);
+            Serial.printf("angle1: %f degree\t angle2: %f degree\t", angle_1 * 180 / PI, angle_2 * 180 / PI);
+            Serial.printf("Diff angle: %f degree\n", diff_angle * 180 / PI);
         }
-        else{
-            rl.turnLeft(0, 0.2);
-        }
+        rl.goStraight(0.4);
     }
-    else if (angle1 < 0){
-        if (abs((angle1 + PI / 2) - angle2) <= 0.087 && d < 0){
-            rl.goStraight(0.5);
-        }
-        else{
-            rl.turnLeft(0, 0.2);
-        }
+    else{
+        rl.vel.lin_vel = 0;
+        rl.vel.anglr_vel = 0; 
     }
 }
-
-

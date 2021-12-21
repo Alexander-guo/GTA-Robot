@@ -99,5 +99,6 @@ void handleBeaconSensing(){
 }
 
 void handleMoveToPos(){
+    Serial.printf("move to xy!");
     savage_friday.setState(AUTONOMOUS);
 }

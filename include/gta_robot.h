@@ -69,12 +69,13 @@ public:
     unsigned int robotUDPPort = 2510; // port for robot
     unsigned int canUDPPort = 1510; // port for robot
 
-    IPAddress ipTarget = IPAddress(192, 168, 0, 255);
-    IPAddress ipLocal1 = IPAddress(192, 168, 0, 132); // my IP address
-    // const char* ssid = "TP-Link_05AF";
-    // const char* password = "47543454";
-    const char* ssid = "TP-Link_E0C8";
-    const char* password = "52665134";
+    IPAddress ipTarget = IPAddress(192, 168, 1, 255);
+    IPAddress ipLocal1 = IPAddress(192, 168, 1, 132); // my IP address
+    const char* ssid = "TP-Link_05AF";
+    const char* password = "47543454";
+
+    // const char* ssid = "TP-Link_E0C8"; // for wu&chen
+    // const char* password = "52665134";
 
     robot robots[4];
     can cans[8];
