@@ -9,7 +9,7 @@
 
 class BeaconDetector
 {
-public:
+private:
     int m_pin;
     int m_frequency;
     uint32_t m_counts;
@@ -26,8 +26,8 @@ public:
     int getFrequency();
     void setFrequency(int freq);
     void IRAM_ATTR processRisingEdge_ISR();
-    void increaseCount();
-    void computeFrequency();
+    void IRAM_ATTR increaseCount();
+    void verifyFrequency();
 };
 
 #endif /* BEACON_DETECTOR_H */

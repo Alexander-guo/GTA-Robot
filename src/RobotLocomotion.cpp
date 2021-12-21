@@ -6,7 +6,7 @@
 //     robo_vel vel{MAX_LINEAR_VEL * LIN_VEL_SCALING, 0};
 // }
 RobotLocomotion::RobotLocomotion()
-    :vel(robo_vel{MAX_LINEAR_VEL * LIN_VEL_SCALING, 0})
+    :vel(robo_vel{0, 0})
 {
     ledcSetup(LEDC_R_CHANNEL, LEDC_FREQ_HZ, LEDC_RESOLUTION_BITS);
     ledcSetup(LEDC_L_CHANNEL, LEDC_FREQ_HZ, LEDC_RESOLUTION_BITS);

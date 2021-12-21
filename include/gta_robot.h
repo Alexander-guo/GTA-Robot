@@ -2,11 +2,11 @@
 #define GTA_ROBOT_H
 
 #include <Arduino.h>
-#include <HCSR04.h>
-#include "RobotLocomotion.h"
-#include "vive510.h"
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include <HCSR04.h>
+#include "vive510.h"
+#include "RobotLocomotion.h"
 #include "beacon_detector.h"
 
 #define SIGNALPIN1 38   // GPIO pin receving signal from Vive circuit
@@ -15,9 +15,10 @@
 #define BEACON_DIODE_LEFT 36
 #define BEACON_DIODE_RIGHT 39
 #define BEACON_MAX_PERSISTANCE 5
-#define BEACON_TOP_THRESHOLD 2
+#define BEACON_TOP_THRESHOLD 3
 #define BEACON_BOTTOM_TRESHOLD 1
 #define BEACON_USING_INTERRUPT true
+#define BEACON_JUST_READ_FREQUENCY false
 
 #define DIP_SWITCH_PIN1 13 // dip switch for 1, 2 (ID: 1, 2)
 #define DIP_SWITCH_PIN2 15 // dip switch for 3, 4 (ID: 3, 4)
@@ -30,7 +31,7 @@
 #define RIGHT_SENSOR_TRIG_PIN 32
 
 enum robot_system_states {MANUAL, AUTONOMOUS, WALL_FOLLOWING, BEACON_SENSING};
-enum robot_action_states {STOPPED, ADVANCING, TURNING};
+enum robot_action_states {IDLE, ADVANCING, TURNING};
 
 typedef struct Robot_data{
     int id;

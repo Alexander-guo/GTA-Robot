@@ -63,7 +63,7 @@ void handleSwitch(){
         body = funcbody;
     if (body == joybody)
     {
-        savage_friday.setState(MANUAL, STOPPED);
+        savage_friday.setState(MANUAL, IDLE);
     }
 
     savage_friday.rl.vel.lin_vel = 0;
@@ -91,14 +91,13 @@ void handleJoy(){
 }
 
 void handleWallFollowing(){
-    savage_friday.setState(WALL_FOLLOWING, STOPPED);
+    savage_friday.setState(WALL_FOLLOWING, IDLE);
 }
 
 void handleBeaconSensing(){
-    savage_friday.setState(BEACON_SENSING, STOPPED);
+    savage_friday.setState(BEACON_SENSING, IDLE);
 }
 
 void handleMoveToPos(){
-    Serial.printf("move to xy!");
-    savage_friday.setState(AUTONOMOUS, STOPPED);
+    savage_friday.setState(AUTONOMOUS, IDLE);
 }

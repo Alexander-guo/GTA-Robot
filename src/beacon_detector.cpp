@@ -19,6 +19,7 @@ int BeaconDetector::getPin()
 int BeaconDetector::getFrequency()
 {
     portENTER_CRITICAL_ISR(&m_mux);
+    // m_frequency = millis() - m_t_now >= 100 ? 0 : m_frequency;
     float freq = m_frequency;
     portEXIT_CRITICAL_ISR(&m_mux);
     return freq;
@@ -33,48 +34,28 @@ void BeaconDetector::setFrequency(int freq)
 
 void IRAM_ATTR BeaconDetector::processRisingEdge_ISR()
 {
-    // if (!m_detected_a_pulse)
-    // {
-    //     return;
-    // }
-    // m_detected_a_pulse = false;
-    // m_t_now = millis();
-    // float new_value = 1000ULL * m_counts / (m_t_now - m_t_prev);
-    // m_counts = 0;
+    m_detected_a_pulse = true;
+    m_ticks_since_pulse = 0;
+    m_t_now = micros();
 
-    // if (new_value > MAX_FREQ - NOISE_FREQ && new_value < MAX_FREQ + NOISE_FREQ)
-    // {
-    //     m_frequency = 700;
-    // }
-    // else if (new_value > MIN_FREQ - NOISE_FREQ && new_value < MIN_FREQ + NOISE_FREQ)
-    // {
-    //     m_frequency = 23;
-    // }
-    // else
-    // {
-    //     m_frequency = new_value;
-    // }
-    // m_t_prev = m_t_now;
-
-    // m_t_now = micros();
     int new_value = 1000000ULL / (m_t_now - m_t_prev);
 
     if (new_value > MAX_FREQ - NOISE_FREQ && new_value < MAX_FREQ + NOISE_FREQ)
     {
-        m_frequency = 700;
+        setFrequency(700);
     }
     else if (new_value > MIN_FREQ - NOISE_FREQ && new_value < MIN_FREQ + NOISE_FREQ)
     {
-        m_frequency = 23;
+        setFrequency(23);
     }
     else
     {
-        m_frequency = new_value;
+        setFrequency(new_value);
     }
-
     m_t_prev = m_t_now;
 }
 
+// This function is deprecated
 void BeaconDetector::increaseCount()
 {
     portENTER_CRITICAL_ISR(&m_mux);
@@ -86,11 +67,12 @@ void BeaconDetector::increaseCount()
     portEXIT_CRITICAL_ISR(&m_mux);
 }
 
-void BeaconDetector::computeFrequency()
+// Call every 10ms to verify that there is still a signal
+void BeaconDetector::verifyFrequency()
 {
     m_ticks_since_pulse++;
 
-    if (m_detected_a_pulse == false)
+    if (!m_detected_a_pulse)
     {
         if (m_ticks_since_pulse > 5)
         {
@@ -104,23 +86,6 @@ void BeaconDetector::computeFrequency()
     }
     else
     {
-        int new_value = m_t_now - m_t_prev;
-        if (new_value != 0)
-        {
-            new_value = 1000000 / new_value;
-        }
-
-        if (new_value > MAX_FREQ - 10 && new_value < MAX_FREQ + 10)
-        {
-            setFrequency(700);
-        }
-        else if (new_value > MIN_FREQ - 3 && new_value < MIN_FREQ + 3)
-        {
-            setFrequency(23);
-        }
-        else
-        {
-            setFrequency(0);
-        }
+        m_detected_a_pulse = false;
     }
 }

@@ -18,14 +18,14 @@ void IRAM_ATTR systemTick_ISR()
 /* ISR functions for Beacon Detector */
 void IRAM_ATTR beaconLeftDiode_ISR()
 {
-    // savage_friday.m_l_beacon.processRisingEdge_ISR();
-    savage_friday.m_l_beacon.increaseCount();
+    savage_friday.m_l_beacon.processRisingEdge_ISR();
+    // savage_friday.m_l_beacon.increaseCount();
 }
 
 void IRAM_ATTR beaconRightDiode_ISR()
 {
-    // savage_friday.m_r_beacon.processRisingEdge_ISR();
-    savage_friday.m_r_beacon.increaseCount();
+    savage_friday.m_r_beacon.processRisingEdge_ISR();
+    // savage_friday.m_r_beacon.increaseCount();
 }
 
 

@@ -11,7 +11,7 @@ extern HTML510Server htmlServer;
 
 
 GTARobot::GTARobot()
-    : m_system_state(MANUAL), m_action_state(STOPPED)
+    : m_system_state(MANUAL), m_action_state(IDLE)
 {
     left_ultrasonic.begin();
     front_ultrasonic.begin();
@@ -55,6 +55,49 @@ void GTARobot::moveRobot()
     rl.updatePWM();
 }
 
+void GTARobot::moveToGivenPos(){
+    static int canNumToFollow;
+
+    // determine which can to follow
+    for (canNumToFollow = 0; canNumToFollow <= 7; canNumToFollow ++){
+        if (cans[canNumToFollow].id != 0){
+            break;
+        }
+    }
+
+    float angle_1, angle_2, diff_angle;
+    float dist = sqrt(pow(cans[canNumToFollow].y - m_y, 2) + pow(cans[canNumToFollow].x - m_x, 2));
+
+    angle_1 = atan2(cans[canNumToFollow].y - m_y, cans[canNumToFollow].x - m_x); // angle from car to can
+    angle_2 = atan2(vive2.xCoord() - vive1.xCoord(), vive2.yCoord() - vive1.yCoord()); 
+
+    // target angle - current angle
+    diff_angle = (angle_2 > PI / 2 && angle_2 <= PI) ?  angle_1 - (angle_2 - 3 * PI / 2) : angle_1 - (angle_2 + PI / 2);
+
+    if (dist > 700){
+        if (fabs(diff_angle) > 10 * PI / 180){
+            if (diff_angle < 0){
+                    rl.turnRight(0, 0.15);
+            }
+            else if (diff_angle > 0){
+                rl.turnLeft(0, 0.15);
+            }
+            angle_1 = atan2(cans[canNumToFollow].y - m_y, cans[canNumToFollow].x - m_x);       // angle from car to can
+            angle_2 = atan2(vive2.xCoord() - vive1.xCoord(), vive2.yCoord() - vive1.yCoord()); 
+            diff_angle = (angle_2 >  PI / 2 && angle_2 <=  PI) ?  angle_1 - (angle_2 - 3 * PI / 2) : angle_1 - (angle_2 + PI / 2);
+            Serial.printf("Robo x: %d, y: %d\t", m_x, m_y);
+            Serial.printf("Can x: %d, y: %d \t", cans[canNumToFollow].x, cans[canNumToFollow].y);
+            Serial.printf("angle1: %f degree\t angle2: %f degree\t", angle_1 * 180 / PI, angle_2 * 180 / PI);
+            Serial.printf("Diff angle: %f degree\n", diff_angle * 180 / PI);
+        }
+        rl.goStraight(0.4);
+    }
+    else{
+        rl.vel.lin_vel = 0;
+        rl.vel.anglr_vel = 0; 
+    }
+}
+
 void  GTARobot::wallFollowing(){
     float right_dist = right_ultrasonic.getDistance();    
     float front_dist = front_ultrasonic.getDistance();    
@@ -69,7 +112,7 @@ void  GTARobot::wallFollowing(){
 
     switch (m_action_state)
     {
-    case STOPPED:
+    case IDLE:
         m_action_state = ADVANCING;
         break;
     case ADVANCING:
@@ -110,99 +153,57 @@ void  GTARobot::wallFollowing(){
 
 void GTARobot::beaconSensing()
 {
-    #if 0
-    // m_l_beacon.processRisingEdge_ISR();
-    // m_r_beacon.processRisingEdge_ISR();
-
-    // portENTER_CRITICAL(&m_l_beacon.m_mux);
-    // float new_value_l = m_l_beacon.m_t_now - m_l_beacon.m_t_prev;
-    // portEXIT_CRITICAL(&m_l_beacon.m_mux);
-
-    // portENTER_CRITICAL_ISR(&m_r_beacon.m_mux);
-    // float new_value_r = m_r_beacon.m_t_now - m_r_beacon.m_t_prev;
-    // portEXIT_CRITICAL(&m_r_beacon.m_mux);
-    // if (new_value_l != 0)
-    // {
-    //     new_value_l = 1000000.0f / new_value_l;
-    // }
-    // if (new_value_r != 0)
-    // {
-    //     new_value_r = 1000000.0f / new_value_r;
-    // }
-    // // m_l_beacon.m_counts = 0;
-    // // m_r_beacon.m_counts = 0;
-
-    // if (new_value_l > MAX_FREQ - 10 && new_value_l < MAX_FREQ + 10)
-    // {
-    //     m_l_beacon.m_frequency = 700;
-    // }
-    // else if (new_value_l > MIN_FREQ - 3 && new_value_l < MIN_FREQ + 3)
-    // {
-    //     m_l_beacon.m_frequency = 23;
-    // }
-    // else
-    // {
-    //     m_l_beacon.m_frequency = 0;
-    // }
-
-    // // R diode
-    // if (new_value_r > MAX_FREQ - 10 && new_value_r < MAX_FREQ + 10)
-    // {
-    //     m_r_beacon.m_frequency = 700;
-    // }
-    // else if (new_value_r > MIN_FREQ - 3 && new_value_r < MIN_FREQ + 3)
-    // {
-    //     m_r_beacon.m_frequency = 23;
-    // }
-    // else
-    // {
-    //     m_r_beacon.m_frequency = 0;
-    // }
-    // // t_prev = t_now;
-
-    // Serial.printf("Left: %f\tRight: %f\n", m_l_beacon.getFrequency(), m_r_beacon.getFrequency());
-    #endif
+    #if BEACON_JUST_READ_FREQUENCY
 
     #if BEACON_USING_INTERRUPT
-    m_l_beacon.computeFrequency();
-    m_r_beacon.computeFrequency();
+    m_r_beacon.verifyFrequency();
+    m_l_beacon.verifyFrequency();
     #endif
 
     int l_freq = m_l_beacon.getFrequency();
     int r_freq = m_r_beacon.getFrequency();
-    Serial.printf("Left: %df\tRight: %d\n", l_freq, r_freq);
+    Serial.printf("Left: %d\tRight: %d\n", l_freq, r_freq);
+    #else
+
+    #if BEACON_USING_INTERRUPT
+    m_r_beacon.verifyFrequency();
+    m_l_beacon.verifyFrequency();
+    #endif
+
+    int l_freq = m_l_beacon.getFrequency();
+    int r_freq = m_r_beacon.getFrequency();
 
     static int l_times_seen = 0;
     static int r_times_seen = 0;
 
     // Update assurance of seeing the beacon
-    l_freq == 700 ? l_times_seen++ : l_times_seen--;
-    r_freq == 700 ? r_times_seen++ : r_times_seen--;
+    (l_freq == 23 || l_freq == 700) ? l_times_seen++ : l_times_seen--;
+    (r_freq == 23 || r_freq == 700) ? r_times_seen++ : r_times_seen--;
 
-    // Clamp limits
-    l_times_seen = min(2, max(0, l_times_seen));
-    r_times_seen = min(2, max(0, r_times_seen));
+    // Clamp limits, this is similar to doing integrator anti-windup on a PID controller
+    l_times_seen = min(BEACON_MAX_PERSISTANCE, max(0, l_times_seen));
+    r_times_seen = min(BEACON_MAX_PERSISTANCE, max(0, r_times_seen));
 
     switch (m_action_state)
     {
-        case STOPPED:
+        case IDLE:
             rl.goStraight(0);   // Stop the robot
             m_action_state = TURNING;
         break;
     case TURNING:
-        if (l_times_seen <= BEACON_TOP_THRESHOLD && r_times_seen <= BEACON_TOP_THRESHOLD)
+        if (l_times_seen < BEACON_TOP_THRESHOLD && r_times_seen < BEACON_TOP_THRESHOLD)
         {
             rl.turnLeft(0, 0.15);
         }
-        else if (l_times_seen > BEACON_TOP_THRESHOLD && r_times_seen <= BEACON_TOP_THRESHOLD)
+        else if (l_times_seen >= BEACON_TOP_THRESHOLD && r_times_seen < BEACON_TOP_THRESHOLD)
         {
             rl.turnLeft(0, 0.15);
         }
-        else if (l_times_seen <= BEACON_TOP_THRESHOLD && r_times_seen > BEACON_TOP_THRESHOLD)
+        else if (l_times_seen < BEACON_TOP_THRESHOLD && r_times_seen >= BEACON_TOP_THRESHOLD)
         {
             rl.turnRight(0, 0.15);
         }
-        else if ( l_times_seen > BEACON_TOP_THRESHOLD && r_times_seen > BEACON_TOP_THRESHOLD)
+        else if ( l_times_seen >= BEACON_TOP_THRESHOLD && r_times_seen >= BEACON_TOP_THRESHOLD)
         {
             m_action_state = ADVANCING;
         }
@@ -210,12 +211,13 @@ void GTARobot::beaconSensing()
     case ADVANCING:
         rl.goStraight(0.2);
         // Go straight until you're not sure that you see the beacon ahead anymore
-        if ( l_times_seen < BEACON_BOTTOM_TRESHOLD && r_times_seen < BEACON_BOTTOM_TRESHOLD)
+        if ( l_times_seen <= BEACON_BOTTOM_TRESHOLD || r_times_seen <= BEACON_BOTTOM_TRESHOLD)
         {
-            m_action_state = STOPPED;
+            m_action_state = IDLE;
         }
         break;
     }
+#endif
 }
 
 void GTARobot::setRoboID(){
@@ -397,45 +399,4 @@ void GTARobot::handleRobotMsg(){
     }
 }
 
-void GTARobot::moveToGivenPos(){
-    static int canNumToFollow;
 
-    // determine which can to follow
-    for (canNumToFollow = 0; canNumToFollow <= 7; canNumToFollow ++){
-        if (cans[canNumToFollow].id != 0){
-            break;
-        }
-    }
-
-    float angle_1, angle_2, diff_angle;
-    float dist = sqrt(pow(cans[canNumToFollow].y - m_y, 2) + pow(cans[canNumToFollow].x - m_x, 2));
-
-    angle_1 = atan2(cans[canNumToFollow].y - m_y, cans[canNumToFollow].x - m_x); // angle from car to can
-    angle_2 = atan2(vive2.xCoord() - vive1.xCoord(), vive2.yCoord() - vive1.yCoord()); 
-
-    // target angle - current angle
-    diff_angle = (angle_2 > PI / 2 && angle_2 <= PI) ?  angle_1 - (angle_2 - 3 * PI / 2) : angle_1 - (angle_2 + PI / 2);
-
-    if (dist > 700){
-        if (fabs(diff_angle) > 10 * PI / 180){
-            if (diff_angle < 0){
-                    rl.turnRight(0, 0.15);
-            }
-            else if (diff_angle > 0){
-                rl.turnLeft(0, 0.15);
-            }
-            angle_1 = atan2(cans[canNumToFollow].y - m_y, cans[canNumToFollow].x - m_x);       // angle from car to can
-            angle_2 = atan2(vive2.xCoord() - vive1.xCoord(), vive2.yCoord() - vive1.yCoord()); 
-            diff_angle = (angle_2 >  PI / 2 && angle_2 <=  PI) ?  angle_1 - (angle_2 - 3 * PI / 2) : angle_1 - (angle_2 + PI / 2);
-            Serial.printf("Robo x: %d, y: %d\t", m_x, m_y);
-            Serial.printf("Can x: %d, y: %d \t", cans[canNumToFollow].x, cans[canNumToFollow].y);
-            Serial.printf("angle1: %f degree\t angle2: %f degree\t", angle_1 * 180 / PI, angle_2 * 180 / PI);
-            Serial.printf("Diff angle: %f degree\n", diff_angle * 180 / PI);
-        }
-        rl.goStraight(0.4);
-    }
-    else{
-        rl.vel.lin_vel = 0;
-        rl.vel.anglr_vel = 0; 
-    }
-}
