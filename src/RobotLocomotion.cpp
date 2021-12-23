@@ -24,7 +24,6 @@ RobotLocomotion::~RobotLocomotion()
 {}
 
 void RobotLocomotion::turnLeft(float lin_vel_scal, float anglr_vel_scal){
-    // vel.lin_vel = MAX_LINEAR_VEL * LIN_VEL_SCALING; // set linear velocity back to initial value
     vel.lin_vel = MAX_LINEAR_VEL * lin_vel_scal;
     vel.anglr_vel = MAX_ANGULAR_VEL * anglr_vel_scal;
     calculate_wheel_vel();
@@ -33,7 +32,6 @@ void RobotLocomotion::turnLeft(float lin_vel_scal, float anglr_vel_scal){
 }
 
 void RobotLocomotion::turnRight(float lin_vel_scal, float anglr_vel_scal){
-    // vel.lin_vel = MAX_LINEAR_VEL * LIN_VEL_SCALING; // set linear velocity back to initial value
     vel.lin_vel = MAX_LINEAR_VEL * lin_vel_scal; 
     vel.anglr_vel = -MAX_ANGULAR_VEL * anglr_vel_scal;
     calculate_wheel_vel();

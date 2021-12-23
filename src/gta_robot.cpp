@@ -21,215 +21,6 @@ GTARobot::GTARobot()
 GTARobot::~GTARobot()
 {}
 
-// This function will perform all the data processing neccessary for each tick
-void GTARobot::processTick()
-{
-    posSending();
-    htmlServer.serve();
-    handleCanMsg();
-    handleRobotMsg();
-
-    switch(m_system_state)
-    {
-        case MANUAL:
-            moveRobot();
-            break;
-        case AUTONOMOUS:
-            moveToGivenPos();
-            break;
-        case WALL_FOLLOWING:
-            wallFollowing();
-            break;
-        case BEACON_SENSING:
-            beaconSensing();
-            break;
-        default:
-            break;
-    }
-}
-
-void GTARobot::moveRobot()
-{
-    rl.calculate_wheel_vel();
-    rl.updateDirection();
-    rl.updatePWM();
-}
-
-void GTARobot::moveToGivenPos(){
-    static int canNumToFollow;
-
-    // determine which can to follow
-    for (canNumToFollow = 0; canNumToFollow <= 7; canNumToFollow ++){
-        if (cans[canNumToFollow].id != 0){
-            break;
-        }
-    }
-
-    float angle_1, angle_2, diff_angle;
-    float dist = sqrt(pow(cans[canNumToFollow].y - m_y, 2) + pow(cans[canNumToFollow].x - m_x, 2));
-
-    angle_1 = atan2(cans[canNumToFollow].y - m_y, cans[canNumToFollow].x - m_x); // angle from car to can
-    angle_2 = atan2(vive2.xCoord() - vive1.xCoord(), vive2.yCoord() - vive1.yCoord()); 
-
-    // target angle - current angle
-    diff_angle = (angle_2 > PI / 2 && angle_2 <= PI) ?  angle_1 - (angle_2 - 3 * PI / 2) : angle_1 - (angle_2 + PI / 2);
-
-    if (dist > 700){
-        if (fabs(diff_angle) > 10 * PI / 180){
-            if (diff_angle < 0){
-                    rl.turnRight(0, 0.15);
-            }
-            else if (diff_angle > 0){
-                rl.turnLeft(0, 0.15);
-            }
-            angle_1 = atan2(cans[canNumToFollow].y - m_y, cans[canNumToFollow].x - m_x);       // angle from car to can
-            angle_2 = atan2(vive2.xCoord() - vive1.xCoord(), vive2.yCoord() - vive1.yCoord()); 
-            diff_angle = (angle_2 >  PI / 2 && angle_2 <=  PI) ?  angle_1 - (angle_2 - 3 * PI / 2) : angle_1 - (angle_2 + PI / 2);
-            Serial.printf("Robo x: %d, y: %d\t", m_x, m_y);
-            Serial.printf("Can x: %d, y: %d \t", cans[canNumToFollow].x, cans[canNumToFollow].y);
-            Serial.printf("angle1: %f degree\t angle2: %f degree\t", angle_1 * 180 / PI, angle_2 * 180 / PI);
-            Serial.printf("Diff angle: %f degree\n", diff_angle * 180 / PI);
-        }
-        rl.goStraight(0.4);
-    }
-    else{
-        rl.vel.lin_vel = 0;
-        rl.vel.anglr_vel = 0; 
-    }
-}
-
-void  GTARobot::wallFollowing(){
-    float right_dist = right_ultrasonic.getDistance();    
-    float front_dist = front_ultrasonic.getDistance();    
-
-    #if SERIAL_LOGGING
-    left_dist != HCSR04_OUT_OF_RANGE ? Serial.printf("Left: %f\n", left_dist) : Serial.println("Left: Out of Range");
-    front_dist != HCSR04_OUT_OF_RANGE ? Serial.printf("Front: %f\n", front_dist) : Serial.println("Front: Out of Range");
-    right_dist != HCSR04_OUT_OF_RANGE ? Serial.printf("Right: %f\n", right_dist) : Serial.println("Right: Out of Range");
-    #endif
-
-    static uint32_t time_started_turning;
-
-    switch (m_action_state)
-    {
-    case IDLE:
-        m_action_state = ADVANCING;
-        break;
-    case ADVANCING:
-        if( !(front_dist <= 20 || front_dist == HCSR04_OUT_OF_RANGE))
-        {
-            if (right_dist < 15 || right_dist == HCSR04_OUT_OF_RANGE)
-            {
-                rl.turnLeft(0.2, 0.05);   
-            }
-            else if ( right_dist > 20)
-            {
-                rl.turnRight(0.2, 0.05);
-            }
-            else
-            {
-                rl.goStraight(0.2);
-            }
-        }
-        else
-        {
-            // Robot has encountered a wall in the front so it stops and turns
-            m_action_state = TURNING;
-            time_started_turning = millis();
-        }
-        break;
-    case TURNING:
-        if ( millis() - time_started_turning <= 300)
-        {
-            rl.turnLeft(0.0, 0.2);
-        }
-        else
-        {
-            m_action_state = ADVANCING;
-        }
-        break;   
-    }
-}
-
-void GTARobot::beaconSensing()
-{
-    #if BEACON_JUST_READ_FREQUENCY
-
-    #if BEACON_USING_INTERRUPT
-    m_r_beacon.verifyFrequency();
-    m_l_beacon.verifyFrequency();
-    #endif
-
-    int l_freq = m_l_beacon.getFrequency();
-    int r_freq = m_r_beacon.getFrequency();
-    Serial.printf("Left: %d\tRight: %d\n", l_freq, r_freq);
-    #else
-
-    #if BEACON_USING_INTERRUPT
-    m_r_beacon.verifyFrequency();
-    m_l_beacon.verifyFrequency();
-    #endif
-
-    int l_freq = m_l_beacon.getFrequency();
-    int r_freq = m_r_beacon.getFrequency();
-
-    static int l_times_seen = 0;
-    static int r_times_seen = 0;
-
-    // Update assurance of seeing the beacon
-    (l_freq == 23 || l_freq == 700) ? l_times_seen++ : l_times_seen--;
-    (r_freq == 23 || r_freq == 700) ? r_times_seen++ : r_times_seen--;
-
-    // Clamp limits, this is similar to doing integrator anti-windup on a PID controller
-    l_times_seen = min(BEACON_MAX_PERSISTANCE, max(0, l_times_seen));
-    r_times_seen = min(BEACON_MAX_PERSISTANCE, max(0, r_times_seen));
-
-    switch (m_action_state)
-    {
-        case IDLE:
-            rl.goStraight(0);   // Stop the robot
-            m_action_state = TURNING;
-        break;
-    case TURNING:
-        if (l_times_seen < BEACON_TOP_THRESHOLD && r_times_seen < BEACON_TOP_THRESHOLD)
-        {
-            rl.turnLeft(0, 0.15);
-        }
-        else if (l_times_seen >= BEACON_TOP_THRESHOLD && r_times_seen < BEACON_TOP_THRESHOLD)
-        {
-            rl.turnLeft(0, 0.15);
-        }
-        else if (l_times_seen < BEACON_TOP_THRESHOLD && r_times_seen >= BEACON_TOP_THRESHOLD)
-        {
-            rl.turnRight(0, 0.15);
-        }
-        else if ( l_times_seen >= BEACON_TOP_THRESHOLD && r_times_seen >= BEACON_TOP_THRESHOLD)
-        {
-            m_action_state = ADVANCING;
-        }
-        break;
-    case ADVANCING:
-        rl.goStraight(0.2);
-        // Go straight until you're not sure that you see the beacon ahead anymore
-        if ( l_times_seen <= BEACON_BOTTOM_TRESHOLD || r_times_seen <= BEACON_BOTTOM_TRESHOLD)
-        {
-            m_action_state = IDLE;
-        }
-        break;
-    }
-#endif
-}
-
-void GTARobot::setRoboID(){
-    roboID = (digitalRead(DIP_SWITCH_PIN1) << 1) + digitalRead(DIP_SWITCH_PIN2) + 1;
-}
-
-void GTARobot::setState(robot_system_states system, robot_action_states action)
-{
-    m_system_state = system;
-    m_action_state = action;
-}
-
 void GTARobot::viveUDPSetup(){
     Serial.println("Vive trackers started!");
     Serial.print("Connecting to ");
@@ -260,33 +51,261 @@ void GTARobot::viveUDPSetup(){
     vive2.begin();
 }
 
-void GTARobot::fncUdpSend(char* datastr, int len){
-    robotUDPServer.beginPacket(ipTarget, robotUDPPort);
-    robotUDPServer.write((uint8_t*)datastr, len);
-    robotUDPServer.endPacket();
-}
-
-/* 
-Calculate the average positon from the two data points
-*/
-void GTARobot::calculateAvgPos(int *arr, int x1, int y1, int x2, int y2){
-  arr[0] = (x1 + x2)/2;
-  arr[1] = (y1 + y2)/2;
-}
-
-int GTARobot::calculateMovingAverage(int &last_value, int new_value, int weight)
+// This function will perform all the data processing neccessary for each tick
+void GTARobot::processTick()
 {
-    int update;
-    update = (weight * last_value + new_value)/( weight + 1);
-    last_value = update;
-    return update;
+    posSending();   // Send robot position, the function safe checks if it is time
+    htmlServer.serve(); // Serve the webpage
+    handleCanMsg();
+    handleRobotMsg();
+
+    // The overall state of the system is set by the user when he clicks
+    // certain buttons on the webpage. Depending on the state, it will perform
+    // a different functionality
+    switch(m_system_state)
+    {
+        case MANUAL:
+            moveRobot();
+            break;
+        case AUTONOMOUS:
+            moveToGivenPos();
+            break;
+        case WALL_FOLLOWING:
+            wallFollowing();
+            break;
+        case BEACON_SENSING:
+            beaconSensing();
+            break;
+        default:
+            break;
+    }
 }
 
+
+/* Robot functionality function */
+void GTARobot::moveRobot()
+{
+    // This is used for manual control The linear and angular velocities
+    // of the robot are determined by the robotlocomotion object
+    rl.calculate_wheel_vel();
+    rl.updateDirection();
+    rl.updatePWM();
+}
+
+void GTARobot::moveToGivenPos(){
+    // This function is used to autonomously move to a specific xy location
+    // in this case we are moving to a single can that is on the field
+
+    static int canNumToFollow;
+
+    // Determine which can to follow
+    for (canNumToFollow = 0; canNumToFollow <= 7; canNumToFollow ++){
+        if (cans[canNumToFollow].id != 0){
+            break;
+        }
+    }
+
+    float angle_1, angle_2, diff_angle;
+    float dist = sqrt(pow(cans[canNumToFollow].y - m_y, 2) + pow(cans[canNumToFollow].x - m_x, 2));
+    
+    // Compute a vector from the robot to the can and calculate the angle
+    angle_1 = atan2(cans[canNumToFollow].y - m_y, cans[canNumToFollow].x - m_x); 
+
+    // Compute a vector from the left vive object to the right object and calculate the angle
+    angle_2 = atan2(vive2.xCoord() - vive1.xCoord(), vive2.yCoord() - vive1.yCoord()); 
+
+    // target angle - current angle
+    // We want our current angle to be 90 offset from the target angle because the front of the robot
+    // is offset 90 degrees from the vector made from our left vive to the right vive
+    diff_angle = (angle_2 > PI / 2 && angle_2 <= PI) ?  angle_1 - (angle_2 - 3 * PI / 2) : angle_1 - (angle_2 + PI / 2);
+
+    if (dist > 700){
+        if (fabs(diff_angle) > 10 * PI / 180){
+            if (diff_angle < 0){
+                    rl.turnRight(0, 0.15);
+            }
+            else if (diff_angle > 0){
+                rl.turnLeft(0, 0.15);
+            }
+            angle_1 = atan2(cans[canNumToFollow].y - m_y, cans[canNumToFollow].x - m_x);       // angle from car to can
+            angle_2 = atan2(vive2.xCoord() - vive1.xCoord(), vive2.yCoord() - vive1.yCoord()); 
+            diff_angle = (angle_2 >  PI / 2 && angle_2 <=  PI) ?  angle_1 - (angle_2 - 3 * PI / 2) : angle_1 - (angle_2 + PI / 2);
+            Serial.printf("Robo x: %d, y: %d\t", m_x, m_y);
+            Serial.printf("Can x: %d, y: %d \t", cans[canNumToFollow].x, cans[canNumToFollow].y);
+            Serial.printf("angle1: %f degree\t angle2: %f degree\t", angle_1 * 180 / PI, angle_2 * 180 / PI);
+            Serial.printf("Diff angle: %f degree\n", diff_angle * 180 / PI);
+        }
+        rl.goStraight(0.4);
+    }
+    else{
+        rl.vel.lin_vel = 0;
+        rl.vel.anglr_vel = 0; 
+    }
+}
+
+void  GTARobot::wallFollowing(){
+    // Only using the right and front sensor to perform wall following in the counter clockwise direction
+    float right_dist = right_ultrasonic.getDistance();    
+    float front_dist = front_ultrasonic.getDistance();    
+
+    // Only used for debugging
+    #if SERIAL_LOGGING
+    left_dist != HCSR04_OUT_OF_RANGE ? Serial.printf("Left: %f\n", left_dist) : Serial.println("Left: Out of Range");
+    front_dist != HCSR04_OUT_OF_RANGE ? Serial.printf("Front: %f\n", front_dist) : Serial.println("Front: Out of Range");
+    right_dist != HCSR04_OUT_OF_RANGE ? Serial.printf("Right: %f\n", right_dist) : Serial.println("Right: Out of Range");
+    #endif
+
+    // The turn is based on the time that it started turning and we wait for a delta time
+    static uint32_t time_started_turning;
+
+    switch (m_action_state)
+    {
+    case IDLE:
+        // This state is just to ensure that we always start at the same point
+        m_action_state = ADVANCING;
+        break;
+    case ADVANCING:
+        // keep advancing until there is a wall in front, if the sensor is to close, it will have
+        // and HCSR04_OUT_OF_RANGE value
+        if( !(front_dist <= 20 || front_dist == HCSR04_OUT_OF_RANGE))
+        {
+            // If the robot is too close to the wall then it keeps moving forward but slowly
+            // drifts to the left. If it is too far from the wall then it slowly drifts to
+            // the right. We have a certain margin so that the bang bang controller is not too
+            // jiterry; this create a type of hysterisis. If the robot is whithin the margin
+            // then it goes straight
+            if (right_dist < 15 || right_dist == HCSR04_OUT_OF_RANGE)
+            {
+                rl.turnLeft(0.2, 0.05);   
+            }
+            else if ( right_dist > 20)
+            {
+                rl.turnRight(0.2, 0.05);
+            }
+            else
+            {
+                rl.goStraight(0.2);
+            }
+        }
+        else
+        {
+            // Robot has encountered a wall in the front so it stops and turns
+            m_action_state = TURNING;
+            time_started_turning = millis();
+        }
+        break;
+    case TURNING:
+        // Keep turning left until enought time has elapsed
+        if ( millis() - time_started_turning <= 300)
+        {
+            rl.turnLeft(0.0, 0.2);
+        }
+        else
+        {
+            m_action_state = ADVANCING;
+        }
+        break;   
+    }
+}
+
+void GTARobot::beaconSensing()
+{
+    #if BEACON_JUST_READ_FREQUENCY
+
+    m_r_beacon.verifyFrequency();
+    m_l_beacon.verifyFrequency();
+
+    int l_freq = m_l_beacon.getFrequency();
+    int r_freq = m_r_beacon.getFrequency();
+    Serial.printf("Left: %d\tRight: %d\n", l_freq, r_freq);
+    #else
+
+    /*  This is a hysterisis-based algorithm that doesn't determine the presence of the beacon
+    *   based directly on whether the read frequency is approximately the expected frequency or
+    *   not. The algorithm has three parameters that can be tuned: BEACON_TOP_THRESHOLD,
+    *   BEACON_BOTTOM_THRESHOLD, and BEACON_MAX_PERSISTANCE. A beacon detector will only be
+    *   certain that the beacon is wihin its line of sight if it has detected the beacon for a
+    *   specific amount of times; this quantity is defined by BEACON_TOP_THRESHOLD. Then it will
+    *   only determine that it no longer sees the beacon if the has stopped seeing it for a
+    *   a specific amount of times (cycles); this is specified by BEACON_BOTTOM_THRESHOLD. This
+    *   algorithm is run at a constant period of 10ms, so this number of times seen is updated
+    *   every cycle, either adding 1 or subtracting 1 to the count. The third parameter,
+    *   BEACON_MAX_PERSISTANCE is used to avoid a lag in the amount of cycles it takes for the
+    *   diode to determine that it has stopped seeing the beacon, it is similar to doing intergrator
+    *   anti-windup in a PID a controller.
+    */
+    
+    // These two function calls should be made every 10ms to make sure that there
+    // is still a signal, since the period is determined with the rising edge of the signal,
+    // the frequency will not be updated if the signal stops coming.
+    m_r_beacon.verifyFrequency();
+    m_l_beacon.verifyFrequency();
+
+    int l_freq = m_l_beacon.getFrequency();
+    int r_freq = m_r_beacon.getFrequency();
+
+    // Static variables to determine the consistancy of the read signals
+    static int l_times_seen = 0;
+    static int r_times_seen = 0;
+
+    // Update assurance of seeing the beacon
+    (l_freq == 23 || l_freq == 700) ? l_times_seen++ : l_times_seen--;
+    (r_freq == 23 || r_freq == 700) ? r_times_seen++ : r_times_seen--;
+
+    // Clamp limits, this is similar to doing integrator anti-windup on a PID controller
+    l_times_seen = min(BEACON_MAX_PERSISTANCE, max(0, l_times_seen));
+    r_times_seen = min(BEACON_MAX_PERSISTANCE, max(0, r_times_seen));
+
+    switch (m_action_state)
+    {
+    case IDLE:
+        // This states is just used to make sure the the functionality always starts from
+        // the same point
+        rl.goStraight(0);   // Stop the robot
+        m_action_state = TURNING;
+        break;
+    case TURNING:
+        // Neither left nor right diodes are sure they see the beacon
+        if (l_times_seen < BEACON_TOP_THRESHOLD && r_times_seen < BEACON_TOP_THRESHOLD)
+        {
+            rl.turnLeft(0, 0.15);
+        }
+        // Left is certain it sees the beacon but right is not
+        else if (l_times_seen >= BEACON_TOP_THRESHOLD && r_times_seen < BEACON_TOP_THRESHOLD)
+        {
+            rl.turnLeft(0, 0.15);
+        }
+        // Right is certain it sees the beacon but left is not
+        else if (l_times_seen < BEACON_TOP_THRESHOLD && r_times_seen >= BEACON_TOP_THRESHOLD)
+        {
+            rl.turnRight(0, 0.15);
+        }
+        // Both diodes are certain that they see the beacon
+        else if ( l_times_seen >= BEACON_TOP_THRESHOLD && r_times_seen >= BEACON_TOP_THRESHOLD)
+        {
+            m_action_state = ADVANCING;
+        }
+        break;
+    case ADVANCING:
+        // Go straight until you're not sure that you see the beacon ahead anymore
+        rl.goStraight(0.2);
+        if ( l_times_seen <= BEACON_BOTTOM_TRESHOLD || r_times_seen <= BEACON_BOTTOM_TRESHOLD)
+        {
+            m_action_state = IDLE;
+        }
+        break;
+    }
+#endif
+}
+
+/* Member functions for processing incomming and outgoing UDP messages */
 void GTARobot::posSending(){
     static uint64_t previous_time;
 
     setRoboID(); // set robot ID
 
+    // Even though our system tick is 10ms, we only send data every 100ms to
+    // not clutter the network
     if (millis() - previous_time >= 100)
     {
         if(vive1.status() == VIVE_LOCKEDON && vive2.status() == VIVE_LOCKEDON){
@@ -325,6 +344,8 @@ void GTARobot::posSending(){
         s[11] = 0;  // Null terminate sprintf
         fncUdpSend(s, 13);
 
+        // This is used for debugging purposes in which we plot the robot's
+        // xy position using Arduino's serial plotter
         #if SERIAL_PLOTTING
         Serial.print("X:");
         Serial.print(m_x);
@@ -335,6 +356,7 @@ void GTARobot::posSending(){
         // Serial.printf("sending data acquired by vive: %s\n", s);
         #endif
 
+        // Only resync the vive object that is not locked on instead of both
         if (vive1.status() != VIVE_LOCKEDON)
         {
             vive1.sync(15); // try to resync 15 times (nonblocking)
@@ -343,8 +365,16 @@ void GTARobot::posSending(){
         {
             vive2.sync(15); // try to resync 15 times (nonblocking)
         }
+
+        // Update static variable to know when to send data again
         previous_time = millis();
     }
+}
+
+void GTARobot::fncUdpSend(char* datastr, int len){
+    robotUDPServer.beginPacket(ipTarget, robotUDPPort);
+    robotUDPServer.write((uint8_t*)datastr, len);
+    robotUDPServer.endPacket();
 }
 
 void GTARobot::handleCanMsg(){
@@ -397,6 +427,36 @@ void GTARobot::handleRobotMsg(){
 
         // Serial.printf("From robot %d: %d, %d\n\r", robotID, x, y);
     }
+}
+
+
+/* Helper function */ 
+void GTARobot::calculateAvgPos(int *arr, int x1, int y1, int x2, int y2){
+  arr[0] = (x1 + x2)/2;
+  arr[1] = (y1 + y2)/2;
+}
+
+int GTARobot::calculateMovingAverage(int &last_value, int new_value, int weight)
+{
+    int update;
+    update = (weight * last_value + new_value)/( weight + 1);
+    last_value = update;
+    return update;
+}
+
+void GTARobot::setRoboID(){
+    // Use two pins to have a total of 4 configurations. Our robot ID is
+    // represented a binary number composed of the state of these two
+    // pins which can be either logically high or low.
+    // We then shift one of the pin state one to the left to represent bit 1
+    // in the composed binary number while the other pin state representes bit 0
+    roboID = (digitalRead(DIP_SWITCH_PIN1) << 1) + digitalRead(DIP_SWITCH_PIN2) + 1;
+}
+
+void GTARobot::setState(robot_system_states system, robot_action_states action)
+{
+    m_system_state = system;
+    m_action_state = action;
 }
 
 

@@ -6,23 +6,25 @@
 #include "myWebpage.h"
 #include "html510.h"
 
-// class HTMLControl{
+/*
+//Started to implement this as a class, but then realized that it wasn't neccessary
+class HTMLControl{
 
-//     public:
-//         static HTML510Server htmlServer;
-//         static RobotLocomotion rl;
+    public:
+        static HTML510Server htmlServer;
+        static RobotLocomotion rl;
 
-//        /*  const char * ssid = "TP-Link_05AF";
-//         const char * password = "47543454"; */
+        //const char * ssid = "TP-Link_05AF";
+        //const char * password = "47543454";
         
-//         static const char *body;
+        static const char *body;
 
-//         // constructor
-//         HTMLControl(RobotLocomotion);
+        // constructor
+        HTMLControl(RobotLocomotion);
 
-//         void init();
-// };
-
+        void init();
+};
+*/
 
 void htmlControlInit(); // initialize html control (after wifi setup)
 

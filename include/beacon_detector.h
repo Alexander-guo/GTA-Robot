@@ -25,8 +25,9 @@ public:
     int getPin();
     int getFrequency();
     void setFrequency(int freq);
+    // Computes the frequency of the signal given the time between each rising edge
     void IRAM_ATTR processRisingEdge_ISR();
-    void IRAM_ATTR increaseCount();
+    // Call every 10ms to verify that there is still a signal
     void verifyFrequency();
 };
 

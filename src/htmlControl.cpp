@@ -19,20 +19,7 @@ float mapFloat(float input, float in_min, float in_max, float out_min, float out
  */
 
 void htmlControlInit(){
-    /* Serial.begin(115200);
-    WiFi.mode(WIFI_MODE_STA); */
-    /* WiFi.begin(ssid, password);
-    WiFi.config(IPAddress(192, 168, 78, 9), // change the last number to your assigned number
-                IPAddress(192, 168, 78, 1),
-                IPAddress(255, 255, 255, 0)); */
-    /* while(WiFi.status()!= WL_CONNECTED ) { 
-        delay(500); Serial.print("."); 
-    } */
-
     htmlServer.begin(); //Start server
-
-    // Serial.println("WiFi connected"); 
-    // Serial.printf("Use this URL http://%s/\n",WiFi.localIP().toString().c_str());                
 
     // writing wrapper func in main.cpp
     htmlServer.attachHandler("/joy?val=",handleJoy);
@@ -40,8 +27,7 @@ void htmlControlInit(){
     htmlServer.attachHandler("/beaconSensingHit",handleBeaconSensing);
     htmlServer.attachHandler("/moveToPosHit", handleMoveToPos);
     htmlServer.attachHandler("/switchmode", handleSwitch);
-    //htmlServer.attachHandler("/lever?val=",handleLever);
-    body = joybody;
+    body = joybody;     // The initial state of the webpage is displaying the joystick
     
     htmlServer.attachHandler("/favicon.ico",handleFavicon);
     htmlServer.attachHandler("/ ",handleRoot);
@@ -55,6 +41,7 @@ void handleRoot(){
 }
 
 void handleSwitch(){
+    // This function is used to switch between manual control and the other funcionalities
     String s = "";
     static int toggle = 0;
     if (toggle)
@@ -91,13 +78,16 @@ void handleJoy(){
 }
 
 void handleWallFollowing(){
+    // Change the system state to wall following
     savage_friday.setState(WALL_FOLLOWING, IDLE);
 }
 
 void handleBeaconSensing(){
+    // Change the system state to beacon sensing
     savage_friday.setState(BEACON_SENSING, IDLE);
 }
 
 void handleMoveToPos(){
+    // Change the system state to autonmous movement to an XY position
     savage_friday.setState(AUTONOMOUS, IDLE);
 }

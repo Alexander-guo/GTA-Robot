@@ -19,7 +19,6 @@ int BeaconDetector::getPin()
 int BeaconDetector::getFrequency()
 {
     portENTER_CRITICAL_ISR(&m_mux);
-    // m_frequency = millis() - m_t_now >= 100 ? 0 : m_frequency;
     float freq = m_frequency;
     portEXIT_CRITICAL_ISR(&m_mux);
     return freq;
@@ -32,6 +31,7 @@ void BeaconDetector::setFrequency(int freq)
     portEXIT_CRITICAL_ISR(&m_mux);
 }
 
+// Computes the frequency of the signal given the time between each rising edge
 void IRAM_ATTR BeaconDetector::processRisingEdge_ISR()
 {
     m_detected_a_pulse = true;
@@ -55,19 +55,11 @@ void IRAM_ATTR BeaconDetector::processRisingEdge_ISR()
     m_t_prev = m_t_now;
 }
 
-// This function is deprecated
-void BeaconDetector::increaseCount()
-{
-    portENTER_CRITICAL_ISR(&m_mux);
-    m_counts++;
-    m_detected_a_pulse = true;
-    m_ticks_since_pulse = 0;
-    m_t_prev = m_t_now;
-    m_t_now = micros();
-    portEXIT_CRITICAL_ISR(&m_mux);
-}
-
-// Call every 10ms to verify that there is still a signal
+/*  Call every 10ms to verify that there is still a signal.
+*   Since we know what the lowest signal frequency we want to detect is, we
+*   can set the frequency to 0, if the amount of time elapsed since the last
+*   rising edge interrupt ocurred is larger than the period of our signal
+*/
 void BeaconDetector::verifyFrequency()
 {
     m_ticks_since_pulse++;
