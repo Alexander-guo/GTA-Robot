@@ -9,7 +9,7 @@ This repository contains the source code for all the functionalities of our self
 * _Autonomous Navigation to XY Position_
 * _Beacon Tracking_
 * _Can Gripping_
-* _Manual wireless control through web-based joystick_
+* _Manual Wireless Control through Web-based Joystick_
 
 ## Circuit Design
 * **_VIVE Detection Circuit_**  
