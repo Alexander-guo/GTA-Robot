@@ -1,4 +1,4 @@
-# MEAM510 GTA Final Project
+# GTA Robot
 This repository contains the source code for all the functionalities of our self-designed **_Differential Drive Robot_**.
 
 <img src="https://user-images.githubusercontent.com/49519237/203483002-e1f3d75e-4109-4ccd-b4eb-964fbd16f0fc.jpg" width="800">
